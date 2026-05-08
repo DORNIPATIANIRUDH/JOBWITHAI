@@ -1,53 +1,41 @@
 {
   "name": "it-job-agent",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Real-time IT job scraper with duplicate detection and fake job validation",
   "main": "job-scraper.js",
   "type": "commonjs",
   "scripts": {
     "scrape": "node job-scraper.js",
-    "scrape:github": "node -e \"require('./job-scraper.js').parseGitHubJobs('software engineer', 20)\"",
-    "scrape:all": "node job-scraper.js --all",
-    "validate": "node -e \"const data = JSON.parse(require('fs').readFileSync('jobs.json')); console.log('Jobs:', data.summary)\"",
-    "report": "node -e \"const {JobScraper} = require('./job-scraper.js'); const s = new JobScraper(); s.jobs = require('./jobs.json').jobs; console.log(s.generateReport())\"",
-    "dev": "http-server . -p 8080",
+    "scrape:dev": "node job-scraper.js 'software engineer'",
+    "validate": "node -e \"const data = JSON.parse(require('fs').readFileSync('jobs.json')); console.log('Summary:', data.summary)\"",
+    "dev": "npx http-server . -p 8080",
     "serve": "python -m http.server 8000",
-    "test": "node -e \"console.log('Tests not implemented yet')\"",
+    "test": "node -e \"console.log('Run: npm run scrape')\"",
     "build": "npm run scrape && npm run validate",
-    "start": "node job-scraper.js && npx http-server ."
+    "start": "node job-scraper.js"
   },
   "keywords": [
-    "job",
-    "scraper",
-    "it-jobs",
-    "aggregator",
-    "duplicate-detection",
-    "fake-job-detection",
-    "github-pages",
-    "automation"
+    "job", "scraper", "it-jobs", "aggregator",
+    "duplicate-detection", "fake-job-detection", "github-pages"
   ],
-  "author": "Your Name",
+  "author": "DORNIPATIANIRUDH",
   "license": "MIT",
   "dependencies": {
-    "node-fetch": "^2.7.0",
-    "axios": "^1.6.2",
-    "cheerio": "^1.0.0-rc.12",
-    "rss-parser": "^3.13.0"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "http-server": "^14.1.1",
-    "jq": "^1.7.0"
+    "http-server": "^14.1.1"
   },
   "engines": {
-    "node": ">=14.0.0",
-    "npm": ">=6.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/it-job-agent.git"
+    "url": "https://github.com/DORNIPATIANIRUDH/JOBWITHAI.git"
   },
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/it-job-agent/issues"
+    "url": "https://github.com/DORNIPATIANIRUDH/JOBWITHAI/issues"
   },
-  "homepage": "https://github.com/YOUR_USERNAME/it-job-agent#readme"
+  "homepage": "https://dornipatianirudh.github.io/JOBWITHAI/"
 }
