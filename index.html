@@ -9,887 +9,359 @@
 <title>IT Job Agent — Real-time Opportunities</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --surface3: #23232d;
-    --border: rgba(120,100,255,0.18);
-    --accent: #7c6fff;
-    --accent2: #00e5b0;
-    --text: #e8e6ff;
-    --muted: #7a7899;
-    --danger: #ff5e6c;
-    --warning: #ffa500;
-    --success: #00e5b0;
-    --font: 'Syne', sans-serif;
-    --mono: 'Space Mono', monospace;
-  }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    font-family: var(--font);
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right));
-    min-height: 100vh;
-    padding-top: max(20px, env(safe-area-inset-top));
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
-
-  .agent-wrap {
-    width: 100%;
-    max-width: 800px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: clamp(12px, 4vw, 20px);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 40px);
-    min-height: 500px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-  }
-
-  /* HEADER */
-  .agent-header {
-    background: linear-gradient(135deg, rgba(124,111,255,0.08), rgba(0,229,176,0.04));
-    border-bottom: 1px solid var(--border);
-    padding: clamp(12px, 3vw, 18px) clamp(16px, 4vw, 24px);
-    display: flex;
-    align-items: center;
-    gap: clamp(10px, 3vw, 16px);
-    flex-shrink: 0;
-  }
-
-  .agent-logo {
-    width: clamp(32px, 8vw, 44px);
-    height: clamp(32px, 8vw, 44px);
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: clamp(8px, 2vw, 12px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(18px, 5vw, 24px);
-    flex-shrink: 0;
-  }
-
-  .agent-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .agent-title {
-    font-size: clamp(14px, 4vw, 18px);
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-  }
-
-  .agent-sub {
-    font-size: clamp(10px, 2.5vw, 12px);
-    color: var(--muted);
-    font-family: var(--mono);
-    margin-top: 2px;
-    opacity: 0.85;
-  }
-
-  .status-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .status-label {
-    font-size: clamp(9px, 2.5vw, 11px);
-    font-family: var(--mono);
-    color: var(--muted);
-    white-space: nowrap;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    transition: all 0.3s;
-    flex-shrink: 0;
-  }
-
-  .status-dot.active {
-    background: var(--accent2);
-    box-shadow: 0 0 10px var(--accent2);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  /* API KEY BAR */
-  .key-bar {
-    background: var(--surface2);
-    border-bottom: 1px solid var(--border);
-    padding: clamp(10px, 2vw, 14px) clamp(14px, 4vw, 20px);
-    display: flex;
-    align-items: center;
-    gap: clamp(8px, 2vw, 12px);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  .key-bar label {
-    font-size: clamp(9px, 2.5vw, 11px);
-    color: var(--muted);
-    font-family: var(--mono);
-    white-space: nowrap;
-  }
-
-  .key-bar input {
-    flex: 1;
-    min-width: 120px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: clamp(6px, 2vw, 8px);
-    padding: clamp(7px, 2vw, 10px) clamp(10px, 3vw, 14px);
-    font-family: var(--mono);
-    font-size: clamp(11px, 2.5vw, 13px);
-    color: var(--text);
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .key-bar input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 12px rgba(124,111,255,0.2);
-  }
-
-  .key-btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: clamp(6px, 2vw, 8px);
-    padding: clamp(7px, 1.5vw, 10px) clamp(12px, 3vw, 16px);
-    font-family: var(--font);
-    font-size: clamp(11px, 2.5vw, 12px);
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-
-  .key-btn:hover:not(:disabled) {
-    opacity: 0.85;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(124,111,255,0.3);
-  }
-
-  .key-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .key-status {
-    font-size: clamp(9px, 2.5vw, 11px);
-    font-family: var(--mono);
-    white-space: nowrap;
-  }
-
-  /* QUICK CHIPS */
-  .chips {
-    padding: clamp(10px, 2vw, 14px);
-    display: flex;
-    gap: clamp(6px, 1.5vw, 10px);
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-    overflow-y: auto;
-    max-height: 180px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  .chips::-webkit-scrollbar {
-    height: 3px;
-  }
-
-  .chips::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .chips::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-  }
-
-  .chip {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    padding: clamp(5px, 1.5vw, 7px) clamp(11px, 2vw, 14px);
-    font-size: clamp(10px, 2.5vw, 12px);
-    color: var(--muted);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: var(--mono);
-    user-select: none;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .chip:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(124,111,255,0.08);
-  }
-
-  .chip:active {
-    transform: scale(0.97);
-  }
-
-  /* MESSAGES */
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: clamp(12px, 3vw, 18px);
-    display: flex;
-    flex-direction: column;
-    gap: clamp(10px, 2vw, 16px);
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  .messages::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .messages::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .messages::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
-  }
-
-  .msg {
-    display: flex;
-    gap: clamp(8px, 2vw, 12px);
-    align-items: flex-start;
-    animation: fadeUp 0.25s ease;
-  }
-
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .msg.user {
-    flex-direction: row-reverse;
-  }
-
-  .avatar {
-    width: clamp(28px, 6vw, 36px);
-    height: clamp(28px, 6vw, 36px);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(14px, 4vw, 18px);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .avatar.ai {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-  }
-
-  .avatar.user {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-  }
-
-  .bubble {
-    max-width: min(85%, 600px);
-    padding: clamp(10px, 2vw, 14px) clamp(12px, 3vw, 16px);
-    border-radius: clamp(12px, 3vw, 16px);
-    font-size: clamp(12px, 2.5vw, 14px);
-    line-height: 1.6;
-    word-wrap: break-word;
-  }
-
-  .msg.ai .bubble {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-top-left-radius: 3px;
-  }
-
-  .msg.user .bubble {
-    background: rgba(124,111,255,0.15);
-    border: 1px solid rgba(124,111,255,0.3);
-    color: var(--text);
-    border-top-right-radius: 3px;
-  }
-
-  .bubble ul, .bubble ol {
-    padding-left: clamp(16px, 4vw, 24px);
-    margin: clamp(6px, 1.5vw, 8px) 0;
-  }
-
-  .bubble li {
-    margin-bottom: clamp(4px, 1vw, 6px);
-  }
-
-  .bubble strong {
-    color: var(--accent2);
-    font-weight: 700;
-  }
-
-  .bubble em {
-    font-style: italic;
-    color: var(--accent);
-  }
-
-  .bubble a {
-    color: var(--accent);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
-  }
-
-  .bubble a:hover {
-    color: var(--accent2);
-  }
-
-  .bubble code {
-    background: rgba(124,111,255,0.15);
-    padding: 1px clamp(4px, 1vw, 6px);
-    border-radius: 4px;
-    font-family: var(--mono);
-    font-size: 0.9em;
-  }
-
-  .tag {
-    display: inline-block;
-    background: rgba(0,229,176,0.1);
-    border: 1px solid rgba(0,229,176,0.25);
-    color: var(--accent2);
-    font-size: clamp(9px, 2vw, 10px);
-    padding: clamp(2px, 0.5vw, 3px) clamp(6px, 1.5vw, 8px);
-    border-radius: 4px;
-    font-family: var(--mono);
-    margin-bottom: clamp(6px, 1.5vw, 8px);
-    letter-spacing: 0.05em;
-    font-weight: 600;
-  }
-
-  .tag.verified {
-    background: rgba(0,229,176,0.15);
-    border-color: rgba(0,229,176,0.4);
-    color: var(--accent2);
-  }
-
-  .tag.duplicate {
-    background: rgba(255,94,108,0.15);
-    border-color: rgba(255,94,108,0.4);
-    color: var(--danger);
-  }
-
-  .tag.suspicious {
-    background: rgba(255,165,0,0.15);
-    border-color: rgba(255,165,0,0.4);
-    color: var(--warning);
-  }
-
-  .job-card {
-    background: var(--surface3);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: clamp(12px, 2vw, 16px);
-    margin: clamp(8px, 2vw, 12px) 0;
-    transition: all 0.2s;
-  }
-
-  .job-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 16px rgba(124,111,255,0.1);
-  }
-
-  .job-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 10px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-  }
-
-  .job-title {
-    font-weight: 700;
-    color: var(--accent2);
-    font-size: clamp(12px, 2.5vw, 14px);
-  }
-
-  .job-company {
-    color: var(--accent);
-    font-size: clamp(10px, 2.5vw, 12px);
-    font-family: var(--mono);
-  }
-
-  .job-meta {
-    font-size: clamp(10px, 2vw, 11px);
-    color: var(--muted);
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin: 8px 0;
-  }
-
-  .job-detail {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .thinking {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    padding: 6px 0;
-  }
-
-  .thinking span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: bounce 1.2s infinite;
-  }
-
-  .thinking span:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .thinking span:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
-  }
-
-  /* INPUT ROW */
-  .input-row {
-    display: flex;
-    gap: clamp(8px, 2vw, 12px);
-    padding: clamp(12px, 2vw, 16px);
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-
-  .msg-input {
-    flex: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: clamp(8px, 2vw, 12px);
-    padding: clamp(10px, 2vw, 12px) clamp(12px, 3vw, 16px);
-    font-family: var(--font);
-    font-size: clamp(12px, 2.5vw, 14px);
-    color: var(--text);
-    outline: none;
-    resize: none;
-    height: clamp(40px, 10vw, 48px);
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-    -webkit-border-radius: clamp(8px, 2vw, 12px);
-  }
-
-  .msg-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 12px rgba(124,111,255,0.2);
-  }
-
-  .msg-input::placeholder {
-    color: var(--muted);
-  }
-
-  .send-btn {
-    background: var(--accent);
-    border: none;
-    border-radius: clamp(8px, 2vw, 12px);
-    width: clamp(40px, 10vw, 48px);
-    height: clamp(40px, 10vw, 48px);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(18px, 5vw, 22px);
-    transition: all 0.15s;
-    flex-shrink: 0;
-    color: white;
-    -webkit-appearance: none;
-    -webkit-border-radius: clamp(8px, 2vw, 12px);
-  }
-
-  .send-btn:hover:not(:disabled) {
-    opacity: 0.85;
-    transform: scale(1.05);
-  }
-
-  .send-btn:active:not(:disabled) {
-    transform: scale(0.95);
-  }
-
-  .send-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .footer-note {
-    font-size: clamp(9px, 2vw, 10px);
-    color: var(--muted);
-    text-align: center;
-    padding: clamp(8px, 2vw, 12px);
-    font-family: var(--mono);
-    flex-shrink: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  /* RESPONSIVE */
-  @media (max-width: 600px) {
-    body {
-      padding: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-top));
-    }
-
-    .agent-wrap {
-      border-radius: 16px;
-      min-height: 60vh;
-    }
-
-    .key-bar {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .key-bar input {
-      width: 100%;
-    }
-
-    .key-btn {
-      width: 100%;
-    }
-
-    .bubble {
-      max-width: 95%;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    * {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --surface3: #23232d;
+    --border: rgba(120,100,255,0.18); --accent: #7c6fff; --accent2: #00e5b0;
+    --text: #e8e6ff; --muted: #7a7899; --danger: #ff5e6c; --warning: #ffa500;
+    --success: #00e5b0; --font: 'Syne', sans-serif; --mono: 'Space Mono', monospace;
+  }
+  html, body { height: 100%; background: var(--bg); font-family: var(--font); color: var(--text); -webkit-font-smoothing: antialiased; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right)); min-height: 100vh; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .agent-wrap { width: 100%; max-width: 800px; background: var(--surface); border: 1px solid var(--border); border-radius: clamp(12px,4vw,20px); overflow: hidden; display: flex; flex-direction: column; height: calc(100vh - 40px); min-height: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .agent-header { background: linear-gradient(135deg,rgba(124,111,255,0.08),rgba(0,229,176,0.04)); border-bottom: 1px solid var(--border); padding: clamp(12px,3vw,18px) clamp(16px,4vw,24px); display: flex; align-items: center; gap: clamp(10px,3vw,16px); flex-shrink: 0; }
+  .agent-logo { width: clamp(32px,8vw,44px); height: clamp(32px,8vw,44px); background: linear-gradient(135deg,var(--accent),var(--accent2)); border-radius: clamp(8px,2vw,12px); display: flex; align-items: center; justify-content: center; font-size: clamp(18px,5vw,24px); flex-shrink: 0; }
+  .agent-info { flex: 1; min-width: 0; }
+  .agent-title { font-size: clamp(14px,4vw,18px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+  .agent-sub { font-size: clamp(10px,2.5vw,12px); color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .status-wrap { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .jobs-badge { font-size: 10px; font-family: var(--mono); background: rgba(0,229,176,0.12); border: 1px solid rgba(0,229,176,0.3); color: var(--accent2); border-radius: 99px; padding: 2px 8px; display: none; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: all 0.3s; flex-shrink: 0; }
+  .status-dot.active { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .key-bar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: clamp(10px,2vw,14px) clamp(14px,4vw,20px); display: flex; align-items: center; gap: clamp(8px,2vw,12px); flex-shrink: 0; flex-wrap: wrap; }
+  .key-bar label { font-size: clamp(9px,2.5vw,11px); color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+  .key-bar input { flex: 1; min-width: 120px; background: var(--bg); border: 1px solid var(--border); border-radius: clamp(6px,2vw,8px); padding: clamp(7px,2vw,10px) clamp(10px,3vw,14px); font-family: var(--mono); font-size: clamp(11px,2.5vw,13px); color: var(--text); outline: none; transition: border-color 0.2s; }
+  .key-bar input:focus { border-color: var(--accent); }
+  .key-btn { background: var(--accent); color: #fff; border: none; border-radius: clamp(6px,2vw,8px); padding: clamp(7px,1.5vw,10px) clamp(12px,3vw,16px); font-family: var(--font); font-size: clamp(11px,2.5vw,12px); font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .key-btn:hover:not(:disabled) { opacity:0.85; transform:translateY(-1px); }
+  .key-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .key-status { font-size: clamp(9px,2.5vw,11px); font-family: var(--mono); white-space: nowrap; }
+  .chips { padding: clamp(10px,2vw,14px); display: flex; gap: clamp(6px,1.5vw,10px); flex-wrap: wrap; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; padding: clamp(5px,1.5vw,7px) clamp(11px,2vw,14px); font-size: clamp(10px,2.5vw,12px); color: var(--muted); cursor: pointer; transition: all 0.2s; font-family: var(--mono); user-select: none; white-space: nowrap; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(124,111,255,0.08); }
+  .messages { flex:1; overflow-y:auto; padding: clamp(12px,3vw,18px); display:flex; flex-direction:column; gap: clamp(10px,2vw,16px); scrollbar-width:thin; scrollbar-color: var(--border) transparent; }
+  .msg { display:flex; gap: clamp(8px,2vw,12px); align-items:flex-start; animation: fadeUp 0.25s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .msg.user { flex-direction:row-reverse; }
+  .avatar { width:clamp(28px,6vw,36px); height:clamp(28px,6vw,36px); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:clamp(14px,4vw,18px); flex-shrink:0; margin-top:2px; }
+  .avatar.ai { background:linear-gradient(135deg,var(--accent),var(--accent2)); }
+  .avatar.user { background:var(--surface2); border:1px solid var(--border); }
+  .bubble { max-width:min(85%,600px); padding:clamp(10px,2vw,14px) clamp(12px,3vw,16px); border-radius:clamp(12px,3vw,16px); font-size:clamp(12px,2.5vw,14px); line-height:1.6; word-wrap:break-word; }
+  .msg.ai   .bubble { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-top-left-radius:3px; }
+  .msg.user .bubble { background:rgba(124,111,255,0.15); border:1px solid rgba(124,111,255,0.3); color:var(--text); border-top-right-radius:3px; }
+  .bubble strong { color:var(--accent2); font-weight:700; }
+  .bubble em     { font-style:italic; color:var(--accent); }
+  .bubble a      { color:var(--accent); text-decoration:underline; }
+  .bubble a:hover { color:var(--accent2); }
+  .bubble code   { background:rgba(124,111,255,0.15); padding:1px 6px; border-radius:4px; font-family:var(--mono); font-size:0.9em; }
+  .tag { display:inline-block; font-size:clamp(9px,2vw,10px); padding:clamp(2px,0.5vw,3px) clamp(6px,1.5vw,8px); border-radius:4px; font-family:var(--mono); margin-bottom:clamp(6px,1.5vw,8px); letter-spacing:0.05em; font-weight:600; }
+  .tag.ok         { background:rgba(0,229,176,0.12);  border:1px solid rgba(0,229,176,0.3);  color:var(--accent2); }
+  .tag.verified   { background:rgba(0,229,176,0.15);  border:1px solid rgba(0,229,176,0.4);  color:var(--accent2); }
+  .tag.duplicate  { background:rgba(255,94,108,0.15); border:1px solid rgba(255,94,108,0.4); color:var(--danger); }
+  .tag.suspicious { background:rgba(255,165,0,0.15);  border:1px solid rgba(255,165,0,0.4);  color:var(--warning); }
+  .tag.error      { background:rgba(255,94,108,0.12); border:1px solid rgba(255,94,108,0.3); color:var(--danger); }
+  .scrape-bar { height:2px; background:var(--surface3); flex-shrink:0; overflow:hidden; }
+  .scrape-progress { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); width:0%; transition:width 0.4s ease; }
+  .thinking { display:flex; gap:5px; align-items:center; padding:6px 0; }
+  .thinking span { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:bounce 1.2s infinite; }
+  .thinking span:nth-child(2){animation-delay:.2s} .thinking span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+  .diag-box { background:var(--surface3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-top:10px; font-family:var(--mono); font-size:11px; color:var(--muted); line-height:1.9; }
+  .diag-box .pass { color:var(--success); } .diag-box .fail { color:var(--danger); } .diag-box .warn { color:var(--warning); }
+  .input-row { display:flex; gap:clamp(8px,2vw,12px); padding:clamp(12px,2vw,16px); border-top:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+  .msg-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:clamp(8px,2vw,12px); padding:clamp(10px,2vw,12px) clamp(12px,3vw,16px); font-family:var(--font); font-size:clamp(12px,2.5vw,14px); color:var(--text); outline:none; resize:none; height:clamp(40px,10vw,48px); transition:border-color 0.2s; }
+  .msg-input:focus { border-color:var(--accent); }
+  .msg-input::placeholder { color:var(--muted); }
+  .send-btn { background:var(--accent); border:none; border-radius:clamp(8px,2vw,12px); width:clamp(40px,10vw,48px); height:clamp(40px,10vw,48px); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:clamp(18px,5vw,22px); transition:all 0.15s; flex-shrink:0; color:white; }
+  .send-btn:hover:not(:disabled){opacity:0.85;transform:scale(1.05)} .send-btn:disabled{opacity:0.35;cursor:not-allowed}
+  .footer-note { font-size:clamp(9px,2vw,10px); color:var(--muted); text-align:center; padding:clamp(8px,2vw,12px); font-family:var(--mono); flex-shrink:0; border-top:1px solid var(--border); }
+  @media(max-width:600px){ .key-bar{flex-direction:column;align-items:stretch} .key-bar input,.key-btn{width:100%} .bubble{max-width:95%} }
 </style>
 </head>
 <body>
-
 <div class="agent-wrap">
 
-  <!-- HEADER -->
   <div class="agent-header">
     <div class="agent-logo">💼</div>
     <div class="agent-info">
       <div class="agent-title">IT Job Agent</div>
-      <div class="agent-sub">Real-time Scraping + Verification</div>
+      <div class="agent-sub" id="agentSub">Real Jobs · Fraud Detection · AI Analysis</div>
     </div>
     <div class="status-wrap">
-      <span class="status-label" id="statusLabel">offline</span>
+      <span class="jobs-badge" id="jobsBadge">0 jobs</span>
       <div class="status-dot" id="statusDot"></div>
     </div>
   </div>
 
-  <!-- API KEY BAR -->
+  <div class="scrape-bar"><div class="scrape-progress" id="scrapeProgress"></div></div>
+
   <div class="key-bar">
     <label>GROQ API</label>
-    <input type="password" id="apiKey" placeholder="gsk_xxxxx..." />
-    <button class="key-btn" onclick="saveKey()">Connect</button>
+    <input type="password" id="apiKey" placeholder="gsk_… · free at console.groq.com" />
+    <button class="key-btn" id="connectBtn" onclick="connectAndLoad()">Connect</button>
     <span class="key-status" id="keyStatus" style="color:var(--muted)">—</span>
   </div>
 
-  <!-- QUICK CHIPS -->
   <div class="chips">
-    <div class="chip" onclick="quickAsk('Find latest IT jobs on LinkedIn, Indeed, and Naukri')">🔍 Latest IT jobs</div>
-    <div class="chip" onclick="quickAsk('Show entry-level developer positions')">👨‍💻 Entry-level roles</div>
-    <div class="chip" onclick="quickAsk('Find data science & ML positions')">📊 Data Science jobs</div>
-    <div class="chip" onclick="quickAsk('Show remote IT jobs')">🌍 Remote positions</div>
-    <div class="chip" onclick="quickAsk('Find duplicates in recent job postings')">⚠️ Check duplicates</div>
-    <div class="chip" onclick="quickAsk('Verify if job posting is legitimate')">✓ Verify posting</div>
-    <div class="chip" onclick="quickAsk('Show suspicious job listings')">🚨 Spot fakes</div>
+    <div class="chip" onclick="quickAsk('List all loaded jobs — show title, company, location, source and apply link')">🔍 Show all jobs</div>
+    <div class="chip" onclick="quickAsk('Find entry-level or junior roles from the loaded jobs')">👨‍💻 Entry-level</div>
+    <div class="chip" onclick="quickAsk('Which jobs look suspicious or fake? Show their fraud risk scores and reasons')">🚨 Spot fakes</div>
+    <div class="chip" onclick="quickAsk('Are there duplicate job postings in the loaded data?')">⚠️ Dupes</div>
+    <div class="chip" onclick="quickAsk('What skills are most in demand across all loaded jobs?')">🧠 Top skills</div>
+    <div class="chip" onclick="quickAsk('Which loaded jobs mention salary? Show amounts')">💰 Salaries</div>
+    <div class="chip" onclick="quickAsk('Show only remote jobs from the loaded list')">🌍 Remote</div>
+    <div class="chip" onclick="runDiag()">🔧 Diagnose</div>
     <div class="chip" onclick="clearChat()">🗑️ Clear</div>
   </div>
 
-  <!-- MESSAGES -->
   <div class="messages" id="messages">
     <div class="msg ai">
       <div class="avatar ai">💼</div>
       <div class="bubble">
-        <div class="tag">AI JOB AGGREGATOR · READY</div><br>
-        Hey there! I'm your <strong>real-time IT job agent</strong> with advanced features:<br><br>
-        ✨ <strong>Job Scraping</strong> — Pulls from LinkedIn, Indeed, Naukri, GitHub Jobs<br>
-        🔍 <strong>Duplicate Detection</strong> — Spots reposted jobs<br>
-        ⚠️ <strong>Fake Job Detection</strong> — Validates legitimacy<br>
-        💾 <strong>GitHub Pages Export</strong> — Host jobs online<br><br>
-        👉 Get your free Groq API key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> and paste it above!
+        <div class="tag ok">IT JOB AGENT · READY</div><br>
+        I pull <strong>real live jobs</strong> from free APIs — no paid subscriptions needed.<br><br>
+        <strong>Architecture (zero CORS issues):</strong><br>
+        🔄 GitHub Actions runs daily → scrapes jobs → saves <code>jobs.json</code><br>
+        📂 This page reads <code>jobs.json</code> from the same server (no CORS)<br>
+        🤖 Groq AI analyses the real data when you ask questions<br><br>
+        <strong>To get started:</strong><br>
+        1. Paste your free <a href="https://console.groq.com" target="_blank">Groq API key</a> above<br>
+        2. Click <strong>Connect</strong><br><br>
+        <span style="color:var(--muted);font-size:12px">⚠️ Getting "Failed to fetch"? Hit the <strong>🔧 Diagnose</strong> chip — it'll tell you exactly what's wrong.</span>
       </div>
     </div>
   </div>
 
-  <!-- INPUT -->
   <div class="input-row">
-    <input class="msg-input" id="userInput"
-      placeholder="Ask about IT jobs, salary, skills..."
-      onkeydown="handleKey(event)" />
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled title="Send">➤</button>
+    <input class="msg-input" id="userInput" placeholder="Ask about jobs, salaries, skills, fraud…" onkeydown="handleKey(event)" />
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
   </div>
 
-  <div class="footer-note">Mobile-optimized • GitHub Pages ready • Your Groq key stays local</div>
+  <div class="footer-note">jobs.json loaded from same server · Groq key stays local · No data collected</div>
 </div>
 
 <script>
-const SYSTEM_PROMPT = `You are an advanced IT job aggregator agent with capabilities in job scraping, duplicate detection, and fake job validation.
+// ── STATE ─────────────────────────────────────────────────────
+let apiKey = '', chatHistory = [], isLoading = false, liveJobs = [], jobsFetched = false;
 
-CAPABILITIES:
-1. **Job Scraping**: Pull and aggregate IT jobs from:
-   - LinkedIn (linkedin.com/jobs)
-   - Indeed (indeed.com)
-   - Naukri (naukri.com)
-   - GitHub Jobs (github.com/jobs)
-   - AngelList (angel.co)
+// ── HELPERS ───────────────────────────────────────────────────
+const stripHtml = h => (h||'').replace(/<[^>]*>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
 
-2. **Duplicate Detection**: Identify reposted jobs by comparing:
-   - Job title + company (exact match = duplicate)
-   - Similar job descriptions (70%+ similarity = likely duplicate)
-   - Same salary range + requirements within 7 days = probable repost
-
-3. **Fake Job Detection**: Flag suspicious postings:
-   - Poor English/grammar = risk factor
-   - Vague company name or unknown company = risk
-   - Unrealistic salary (too high/low for role) = suspicious
-   - Asking for upfront payment = SCAM
-   - No clear company contact or email = risk
-   - Work-from-home with high salary = often fake
-
-4. **Job Validation**: Check legitimacy using:
-   - Company website verification
-   - LinkedIn company verification badge
-   - Email domain legitimacy
-   - Salary benchmark against industry standards
-
-RESPONSE FORMAT FOR JOB LISTINGS:
-When showing jobs, use this format:
-[VERIFIED] or [DUPLICATE] or [SUSPICIOUS] tags
-- Job Title | Company | Location
-- Salary Range (if available)
-- Key Requirements
-- Posting Source
-- Fraud Risk Level (Low/Medium/High)
-
-Current Date: 8 May 2026
-
-Be helpful, analytical, and warn users about suspicious postings.`;
-
-let apiKey = '';
-let chatHistory = [];
-let isLoading = false;
-let jobDatabase = JSON.parse(localStorage.getItem('jobDatabase') || '[]');
-
-function saveKey() {
-  const k = document.getElementById('apiKey').value.trim();
-  const status = document.getElementById('keyStatus');
-  const dot = document.getElementById('statusDot');
-  const label = document.getElementById('statusLabel');
-
-  if (!k || k.length < 10) {
-    status.textContent = '✗ Too short';
-    status.style.color = 'var(--danger)';
-    return;
-  }
-  if (!k.startsWith('gsk_')) {
-    status.textContent = '✗ Invalid format';
-    status.style.color = 'var(--danger)';
-    return;
-  }
-
-  apiKey = k;
-  status.textContent = '✓ Live';
-  status.style.color = 'var(--success)';
-  dot.classList.add('active');
-  label.textContent = 'online';
-  label.style.color = 'var(--accent2)';
-  document.getElementById('sendBtn').disabled = false;
-  document.getElementById('apiKey').value = '•'.repeat(20);
-
-  appendMsg('ai', '<div class="tag verified">CONNECTED</div><br>✅ <strong>Groq API connected!</strong> Ready to scrape and verify IT jobs.<br><br>Ask me to find jobs, check for duplicates, or validate listings.');
+// ── FRAUD VALIDATOR ───────────────────────────────────────────
+const SCAM = [/upfront.{0,20}(fee|payment)/i,/wire.{0,10}transfer/i,/guaranteed.{0,15}(job|hire)/i,/earn.{0,20}easily.{0,20}home/i,/whatsapp.{0,20}apply/i,/processing.{0,10}fee/i];
+function validateJob(j) {
+  let score=0, risks=[];
+  const t=(j.description||'')+' '+(j.title||'');
+  SCAM.forEach(p=>{ if(p.test(t)){score+=25;risks.push('Scam pattern');} });
+  if(/@(gmail|yahoo|hotmail)\.com/i.test(t)){score+=30;risks.push('Personal email contact');}
+  score=Math.min(100,score);
+  return {riskScore:score,riskLevel:score<30?'LOW':score<60?'MEDIUM':'HIGH',isLegitimate:score<50,risks};
 }
 
-function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-}
-
-function quickAsk(text) {
-  if (!apiKey) {
-    appendMsg('ai', '🔑 Please connect your <strong>Groq API key</strong> first!');
-    return;
-  }
-  document.getElementById('userInput').value = text;
-  sendMessage();
-}
-
-function clearChat() {
-  chatHistory = [];
-  document.getElementById('messages').innerHTML = '';
-  appendMsg('ai', '🗑️ Chat cleared! Ready to search for jobs.');
-}
-
-function appendMsg(role, html) {
-  const box = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  const emo = role === 'ai' ? '💼' : '👤';
-  div.innerHTML = `<div class="avatar ${role}">${emo}</div><div class="bubble">${html}</div>`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-  return div;
-}
-
-function showThinking() {
-  const box = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'msg ai';
-  div.id = 'thinkingMsg';
-  div.innerHTML = `<div class="avatar ai">💼</div><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-
-function removeThinking() {
-  const t = document.getElementById('thinkingMsg');
-  if (t) t.remove();
-}
-
-function formatResponse(text) {
-  if (text.includes('CLEAR_CHAT')) {
-    clearChat();
-    return null;
-  }
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/^#{1,3} (.+)$/gm, '<strong style="font-size:1.1em;color:var(--accent)">$1</strong>')
-    .replace(/^\[VERIFIED\]/gm, '<div class="tag verified">✓ VERIFIED</div>')
-    .replace(/^\[DUPLICATE\]/gm, '<div class="tag duplicate">⚠ DUPLICATE</div>')
-    .replace(/^\[SUSPICIOUS\]/gm, '<div class="tag suspicious">🚨 SUSPICIOUS</div>')
-    .replace(/\n\n/g, '<br><br>')
-    .replace(/\n/g, '<br>');
-}
-
-async function sendMessage() {
-  const input = document.getElementById('userInput');
-  const text = input.value.trim();
-  if (!text || isLoading || !apiKey) return;
-
-  isLoading = true;
-  document.getElementById('sendBtn').disabled = true;
-  input.value = '';
-
-  appendMsg('user', text);
-  chatHistory.push({ role: 'user', content: text });
-
-  showThinking();
-
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...chatHistory.slice(-10)
-        ],
-        max_tokens: 1200,
-        temperature: 0.7,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      removeThinking();
-      const errMsg = err?.error?.message || `HTTP ${response.status}`;
-      appendMsg('ai', `<span style="color:var(--danger)">❌ Error: <strong>${errMsg}</strong></span><br><br>Check your API key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>`);
-    } else {
-      const data = await response.json();
-      const reply = data.choices?.[0]?.message?.content || 'No response.';
-      chatHistory.push({ role: 'assistant', content: reply });
-      removeThinking();
-      const formatted = formatResponse(reply);
-      if (formatted !== null) appendMsg('ai', formatted);
-      
-      // Store jobs if found
-      if (text.toLowerCase().includes('job')) {
-        localStorage.setItem('jobDatabase', JSON.stringify(jobDatabase));
-      }
+// ── DUPLICATE DETECTION ───────────────────────────────────────
+function findDuplicates(jobs) {
+  const dupes=[],seen=new Set();
+  for(let i=0;i<jobs.length;i++){
+    if(seen.has(i)) continue;
+    for(let j=i+1;j<jobs.length;j++){
+      if(seen.has(j)) continue;
+      if(jobs[i].company===jobs[j].company && jobs[i].title===jobs[j].title){dupes.push({i,j});seen.add(j);}
     }
-
-  } catch (err) {
-    removeThinking();
-    appendMsg('ai', `<span style="color:var(--danger)">❌ Network error: <strong>${err.message}</strong></span>`);
   }
-
-  isLoading = false;
-  document.getElementById('sendBtn').disabled = false;
-  input.focus();
+  return dupes;
 }
 
-// Initialize
-window.addEventListener('beforeunload', () => {
-  localStorage.setItem('jobDatabase', JSON.stringify(jobDatabase));
-});
+// ── JOB LOADING ───────────────────────────────────────────────
+// PRIMARY: jobs.json from same domain (zero CORS ever)
+async function loadJobsFromFile() {
+  const r = await fetch('./jobs.json');
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  const d = await r.json();
+  return d.jobs || d || [];
+}
+
+// FALLBACK: live APIs (Arbeitnow + The Muse have real CORS support)
+async function loadJobsLive() {
+  const all=[];
+  // Arbeitnow
+  try {
+    const r=await fetch('https://www.arbeitnow.com/api/job-board-api?page=1');
+    const d=await r.json();
+    all.push(...(d.data||[]).slice(0,20).map(j=>({id:`arb_${j.slug}`,title:j.title||'Unknown',company:j.company_name||'Unknown',location:j.location||(j.remote?'Remote 🌍':'Unknown'),salary:null,description:stripHtml(j.description||'').slice(0,400),tags:(j.tags||[]).slice(0,5),posted:j.created_at?new Date(j.created_at*1000).toLocaleDateString():'Recently',url:j.url||'https://www.arbeitnow.com',source:'Arbeitnow'})));
+  } catch(e){console.warn('[Arbeitnow]',e.message);}
+  // The Muse
+  try {
+    const r=await fetch('https://www.themuse.com/api/public/jobs?category=Software%20Engineer&page=0&descending=true');
+    const d=await r.json();
+    all.push(...(d.results||[]).slice(0,15).map(j=>({id:`muse_${j.id}`,title:j.name||'Unknown',company:j.company?.name||'Unknown',location:j.locations?.[0]?.name||'Unknown',salary:null,description:stripHtml(j.contents||'').slice(0,400),tags:(j.categories||[]).map(c=>c.name).slice(0,4),posted:j.publication_date?new Date(j.publication_date).toLocaleDateString():'Recently',url:j.refs?.landing_page||'https://www.themuse.com',source:'The Muse'})));
+  } catch(e){console.warn('[The Muse]',e.message);}
+  return all;
+}
+
+async function loadJobs() {
+  setProgress(20);
+  let jobs=[], source='';
+  try {
+    jobs=await loadJobsFromFile(); source='jobs.json';
+    setProgress(70);
+  } catch(e) {
+    appendMsg('ai','<span style="color:var(--muted);font-size:12px">⚙️ <code>jobs.json</code> not found — trying live APIs…</span>');
+    try { jobs=await loadJobsLive(); source='live APIs (Arbeitnow + The Muse)'; setProgress(70); }
+    catch(e2) {
+      setProgress(0);
+      appendMsg('ai','<div class="tag error">JOBS FAILED TO LOAD</div><br>Neither <code>jobs.json</code> nor live APIs worked.<br><br>Fix: run <code>node job-scraper.js</code> and push <code>jobs.json</code> to your repo.');
+      return;
+    }
+  }
+  liveJobs=jobs.map(j=>({...j,validation:j.validation||validateJob(j)}));
+  const dupes=findDuplicates(liveJobs);
+  const dupeSet=new Set(dupes.map(d=>d.j));
+  liveJobs=liveJobs.map((j,i)=>({...j,isDuplicate:dupeSet.has(i)}));
+  setProgress(100); setTimeout(()=>setProgress(0),700);
+  document.getElementById('jobsBadge').textContent=`${liveJobs.length} jobs`;
+  document.getElementById('jobsBadge').style.display='inline';
+  jobsFetched=true;
+  // Prime Groq context
+  chatHistory=[
+    {role:'user',content:`[REAL JOB DATA — ${liveJobs.length} jobs from ${source}]\n${buildJobContext()}`},
+    {role:'assistant',content:`Loaded ${liveJobs.length} real jobs from ${source}. Ready to answer questions.`}
+  ];
+  const bySource={};
+  liveJobs.forEach(j=>{bySource[j.source||'Unknown']=(bySource[j.source||'Unknown']||0)+1;});
+  const verified=liveJobs.filter(j=>j.validation?.isLegitimate!==false).length;
+  const suspicious=liveJobs.filter(j=>j.validation?.isLegitimate===false).length;
+  appendMsg('ai',`<div class="tag verified">JOBS LOADED ✓</div><br><strong>${liveJobs.length} jobs</strong> from <em>${source}</em><br><br>${Object.entries(bySource).map(([s,n])=>`📡 <strong>${s}</strong>: ${n}`).join('<br>')}<br><br>✅ Verified: <strong>${verified}</strong> &nbsp; ⚠️ Suspicious: <strong>${suspicious}</strong> &nbsp; 🔁 Dupes: <strong>${dupes.length}</strong><br><br>Ask me anything!`);
+}
+
+function buildJobContext() {
+  return liveJobs.map((j,i)=>`[${i+1}] "${j.title}" @ ${j.company} | ${j.location} | ${j.source} | Risk:${j.validation?.riskLevel||'LOW'}(${j.validation?.riskScore||0}) | Tags:${(j.tags||[]).join(',')||'N/A'} | Salary:${j.salary||'N/A'} | Dupe:${j.isDuplicate?'YES':'no'} | URL:${j.url}`).join('\n');
+}
+
+function getSystemPrompt() {
+  return `You are an IT job agent. The user message tagged [REAL JOB DATA] contains actual live job listings.\n\nRules:\n- Only reference jobs from the loaded list\n- Tag each job: [VERIFIED], [SUSPICIOUS], or [DUPLICATE]\n- Always show: Title | Company | Location | Source | apply URL\n- Do NOT invent jobs\n\nDate: ${new Date().toLocaleDateString('en-IN')}`;
+}
+
+// ── PROGRESS ─────────────────────────────────────────────────
+function setProgress(p){document.getElementById('scrapeProgress').style.width=p+'%';}
+
+// ── CONNECT ───────────────────────────────────────────────────
+async function connectAndLoad() {
+  const k=document.getElementById('apiKey').value.trim();
+  if(!k||k.length<10){
+    document.getElementById('keyStatus').textContent='✗ key too short';
+    document.getElementById('keyStatus').style.color='var(--danger)'; return;
+  }
+  apiKey=k;
+  const btn=document.getElementById('connectBtn');
+  btn.disabled=true; btn.textContent='Testing…';
+  document.getElementById('apiKey').value='•'.repeat(20);
+
+  const ok=await testGroq();
+  if(!ok){btn.disabled=false;btn.textContent='Connect';return;}
+
+  document.getElementById('keyStatus').textContent='✓ key valid';
+  document.getElementById('keyStatus').style.color='var(--success)';
+  document.getElementById('statusDot').classList.add('active');
+  document.getElementById('sendBtn').disabled=false;
+  btn.textContent='Connected ✓';
+  document.getElementById('agentSub').textContent='Loading jobs…';
+  await loadJobs();
+  document.getElementById('agentSub').textContent=`${liveJobs.length} jobs loaded ✓`;
+}
+
+// ── GROQ TEST ────────────────────────────────────────────────
+async function testGroq() {
+  try {
+    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'OK'}],max_tokens:3})
+    });
+    if(r.status===401){
+      appendMsg('ai','<div class="tag error">INVALID KEY (401)</div><br>Your Groq key was rejected.<br>Get a new one at <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys → Create new key.');
+      return false;
+    }
+    if(r.status===429){appendMsg('ai','<div class="tag error">RATE LIMITED (429)</div><br>Free tier limit hit. Wait 60 seconds and try again.');return false;}
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return true;
+  } catch(e){showNetworkError(e);return false;}
+}
+
+// ── NETWORK ERROR DIAGNOSTICS ─────────────────────────────────
+function showNetworkError(e) {
+  const isFile=location.protocol==='file:';
+  let html=`<div class="tag error">NETWORK ERROR — FAILED TO FETCH</div><br><strong>Raw error:</strong> <code>${e.message}</code><br><br><div class="diag-box">`;
+  html+=`<span class="${isFile?'fail':'pass'}">${isFile?'✗':'✓'}</span> Protocol: <code>${location.protocol}</code>${isFile?' ← <span class="fail">PROBLEM: file:// blocks ALL external calls</span>':''}<br>`;
+  html+=`<span class="warn">?</span> Groq (api.groq.com): unreachable or blocked<br>`;
+  html+=`<span class="warn">?</span> Ad-blocker may be filtering api.groq.com<br>`;
+  html+='</div><br>';
+  if(isFile){
+    html+='<strong>Fix (you\'re on file://)</strong><br>Open a local server instead:<br><code>npx http-server .</code><br>Then open <code>http://localhost:8080</code>';
+  } else {
+    html+=`<strong>Things to try:</strong><br>
+1️⃣ <strong>Disable ad-blocker</strong> on this page (most common cause)<br>
+2️⃣ Try <strong>incognito mode</strong> (rules out extensions)<br>
+3️⃣ Switch network — try mobile hotspot if on WiFi<br>
+4️⃣ Open <a href="https://api.groq.com" target="_blank">api.groq.com</a> in a new tab — if it doesn't load, your network is blocking it<br>
+5️⃣ Run <strong>🔧 Diagnose</strong> chip for a full connection report`;
+  }
+  appendMsg('ai',html);
+}
+
+// ── DIAGNOSTICS ──────────────────────────────────────────────
+async function runDiag() {
+  appendMsg('ai','<div class="tag ok">RUNNING DIAGNOSTICS…</div>');
+  const results=[];
+  results.push({label:'Protocol',ok:location.protocol!=='file:',detail:location.protocol+(location.protocol==='file:'?' ← must use http:// or https://':'')});
+  try{const r=await fetch('./jobs.json');results.push({label:'jobs.json (same server)',ok:r.ok,detail:r.ok?`✓ found, HTTP ${r.status}`:`HTTP ${r.status} — run job-scraper.js first`});}
+  catch(e){results.push({label:'jobs.json',ok:false,detail:e.message});}
+  if(apiKey){
+    try{const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':`Bearer ${apiKey}`}});results.push({label:'Groq API',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+    catch(e){results.push({label:'Groq API',ok:false,detail:`${e.message} → disable ad-blocker / try hotspot`});}
+  } else {
+    results.push({label:'Groq API',ok:null,detail:'No key entered yet'});
+  }
+  try{const r=await fetch('https://www.arbeitnow.com/api/job-board-api?page=1');results.push({label:'Arbeitnow (live jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+  catch(e){results.push({label:'Arbeitnow',ok:false,detail:e.message});}
+  try{const r=await fetch('https://www.themuse.com/api/public/jobs?page=0');results.push({label:'The Muse (live jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+  catch(e){results.push({label:'The Muse',ok:false,detail:e.message});}
+  const rows=results.map(r=>{
+    const ic=r.ok===null?'<span class="warn">?</span>':r.ok?'<span class="pass">✓</span>':'<span class="fail">✗</span>';
+    return `${ic} <strong>${r.label}</strong>: ${r.detail}`;
+  }).join('<br>');
+  document.getElementById('messages').lastElementChild.querySelector('.bubble').innerHTML+=`<br><div class="diag-box">${rows}</div>`;
+}
+
+// ── UI ────────────────────────────────────────────────────────
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function quickAsk(t){if(!apiKey){appendMsg('ai','⚠️ Connect your Groq key first.');return;}document.getElementById('userInput').value=t;sendMessage();}
+function clearChat(){document.getElementById('messages').innerHTML='';chatHistory=jobsFetched?chatHistory.slice(0,2):[];appendMsg('ai','🗑️ Cleared. Job data still loaded.');}
+function appendMsg(role,html){const m=document.getElementById('messages'),d=document.createElement('div');d.className=`msg ${role}`;d.innerHTML=`<div class="avatar ${role}">${role==='ai'?'💼':'👤'}</div><div class="bubble">${html}</div>`;m.appendChild(d);m.scrollTop=m.scrollHeight;}
+function showThinking(){const m=document.getElementById('messages'),d=document.createElement('div');d.className='msg ai';d.id='thinkingMsg';d.innerHTML=`<div class="avatar ai">💼</div><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;m.appendChild(d);m.scrollTop=m.scrollHeight;}
+function removeThinking(){const e=document.getElementById('thinkingMsg');if(e)e.remove();}
+function formatResponse(t){return t.replace(/\[VERIFIED\]/gm,'<span class="tag verified">✓ VERIFIED</span>').replace(/\[DUPLICATE\]/gm,'<span class="tag duplicate">⚠ DUPLICATE</span>').replace(/\[SUSPICIOUS\]/gm,'<span class="tag suspicious">🚨 SUSPICIOUS</span>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');}
+
+// ── SEND ──────────────────────────────────────────────────────
+async function sendMessage(){
+  const input=document.getElementById('userInput'),text=input.value.trim();
+  if(!text||isLoading||!apiKey) return;
+  isLoading=true;document.getElementById('sendBtn').disabled=true;input.value='';
+  appendMsg('user',text);chatHistory.push({role:'user',content:text});showThinking();
+  try{
+    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:getSystemPrompt()},...chatHistory.slice(-14)],max_tokens:1500,temperature:0.6,stream:false})
+    });
+    removeThinking();
+    if(r.status===401){appendMsg('ai','<div class="tag error">INVALID KEY</div><br>Get a fresh key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>');}
+    else if(r.status===429){appendMsg('ai','<div class="tag error">RATE LIMITED</div><br>Wait 60 seconds and try again.');}
+    else if(!r.ok){const err=await r.json().catch(()=>({}));appendMsg('ai',`<div class="tag error">ERROR ${r.status}</div><br>${err?.error?.message||'Unknown error'}`);}
+    else{const d=await r.json();const reply=d.choices?.[0]?.message?.content||'No response.';chatHistory.push({role:'assistant',content:reply});appendMsg('ai',formatResponse(reply));}
+  }catch(e){removeThinking();showNetworkError(e);}
+  isLoading=false;document.getElementById('sendBtn').disabled=false;input.focus();
+}
 </script>
 </body>
 </html>
