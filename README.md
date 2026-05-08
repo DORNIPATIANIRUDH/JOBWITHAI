@@ -422,6 +422,7 @@ A: Yes! Replace the frontend API calls with your backend endpoint.
 ## 🌟 Star History
 
 Show your support with a ⭐ on GitHub!
+*.gov.in, ssc.nic.in, upsc.gov.in, ibps.in, employmentnews.gov.in, sarkariresult.com, *.nic.in, rbi.org.in
 
 ---
 
