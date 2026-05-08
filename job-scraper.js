@@ -30,6 +30,11 @@ const CONFIG = {
     country: 'in',
     enabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY)
   },
+  google: {
+    key: process.env.GOOGLE_CSE_KEY || '',   // console.cloud.google.com → Custom Search API → API Key
+    cx:  process.env.GOOGLE_CSE_CX  || '',   // programmablesearchengine.google.com → Search Engine ID
+    enabled: !!(process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_CX)
+  },
   limit: 20,
   userAgent: 'Mozilla/5.0 (compatible; ITJobAgent/3.0)'
 };
@@ -323,7 +328,86 @@ async function fetchAdzuna(query = 'software engineer') {
 }
 
 // ─────────────────────────────────────────────
-// DUPLICATE DETECTION
+// SOURCE 9 — Google Custom Search (PSU / Govt)
+// 100 free searches/day — best for PSU notifications
+//
+// Setup (5 min, free):
+//   1. programmablesearchengine.google.com → New search engine
+//      Add sites: *.gov.in, ssc.nic.in, upsc.gov.in, ibps.in,
+//      employmentnews.gov.in, sarkariresult.com, *.nic.in, rbi.org.in
+//      Copy the Search Engine ID
+//   2. console.cloud.google.com → Enable Custom Search API → Create API Key
+//   3. Add to GitHub Secrets:
+//      GOOGLE_CSE_KEY = your API key
+//      GOOGLE_CSE_CX  = your Search Engine ID
+// ─────────────────────────────────────────────
+async function fetchGooglePSU(queries = [
+  'PSU recruitment 2026 notification India apply',
+  'UPSC SSC IBPS RRB recruitment notification 2026',
+  'BHEL NTPC ONGC HAL BEL recruitment 2026 vacancy',
+  'government IT jobs NIC BSNL CDAC recruitment 2026'
+]) {
+  if (!CONFIG.google.enabled) {
+    console.log('[Google] Skipped — set GOOGLE_CSE_KEY + GOOGLE_CSE_CX in GitHub Secrets.');
+    console.log('  Setup guide: programmablesearchengine.google.com + console.cloud.google.com');
+    return [];
+  }
+
+  const allResults = [];
+
+  for (const query of queries.slice(0, 4)) { // max 4 queries to stay in free tier
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1`
+        + `?key=${CONFIG.google.key}`
+        + `&cx=${CONFIG.google.cx}`
+        + `&q=${encodeURIComponent(query)}`
+        + `&num=10`
+        + `&dateRestrict=m3`
+        + `&sort=date`;
+
+      const res = await fetch(url, { headers: HEADERS });
+
+      if (res.status === 429) {
+        console.warn('[Google] Daily limit (100/day) reached. Results so far kept.');
+        break;
+      }
+
+      if (!res.ok) {
+        console.error(`[Google] HTTP ${res.status} for query: ${query}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const items = data.items || [];
+
+      items.forEach((item, i) => {
+        allResults.push({
+          id: `google_${Date.now()}_${i}`,
+          title: item.title || 'Unknown',
+          company: item.displayLink || 'Government',
+          location: 'India 🇮🇳',
+          salary: null,
+          description: (item.snippet || '').slice(0, 500),
+          tags: ['PSU', 'Government', 'Google Search'],
+          posted: item.pagemap?.metatags?.[0]?.['article:published_time']
+            ? new Date(item.pagemap.metatags[0]['article:published_time']).toISOString()
+            : new Date().toISOString(),
+          url: item.link,
+          source: 'Google Search (PSU)'
+        });
+      });
+
+      console.log(`[Google] "${query}" → ${items.length} results`);
+      await new Promise(r => setTimeout(r, 500)); // gentle rate limiting
+    } catch (e) {
+      console.error(`[Google] Error for "${query}":`, e.message);
+    }
+  }
+
+  return allResults;
+}
+
+// ─────────────────────────────────────────────
 // ─────────────────────────────────────────────
 function levenshtein(a, b) {
   const m = a.length, n = b.length;
@@ -412,7 +496,8 @@ async function scrapeAll(query = 'software engineer') {
     jobicy,
     remoteok,
     arbeitnow,
-    adzuna
+    adzuna,
+    google
   ] = await Promise.allSettled([
     fetchIndeedIndia(query),
     fetchEmploymentNews(),
@@ -421,20 +506,22 @@ async function scrapeAll(query = 'software engineer') {
     fetchJobicy(query),
     fetchRemoteOK(query),
     fetchArbeitnow(query),
-    fetchAdzuna(query)
+    fetchAdzuna(query),
+    fetchGooglePSU()
   ]);
 
   const get = r => r.status === 'fulfilled' ? r.value : [];
 
   const counts = {
-    'Indeed India':   get(indeedIndia).length,
-    'Employment News (PSU)': get(psu).length,
-    'TimesJobs':      get(timesJobs).length,
-    'Remotive':       get(remotive).length,
-    'Jobicy':         get(jobicy).length,
-    'RemoteOK':       get(remoteok).length,
-    'Arbeitnow':      get(arbeitnow).length,
-    'Adzuna India':   get(adzuna).length,
+    'Indeed India':           get(indeedIndia).length,
+    'Employment News (PSU)':  get(psu).length,
+    'TimesJobs':              get(timesJobs).length,
+    'Remotive':               get(remotive).length,
+    'Jobicy':                 get(jobicy).length,
+    'RemoteOK':               get(remoteok).length,
+    'Arbeitnow':              get(arbeitnow).length,
+    'Adzuna India':           get(adzuna).length,
+    'Google Search (PSU)':    get(google).length,
   };
 
   Object.entries(counts).forEach(([s, n]) => console.log(`  ${s}: ${n} jobs`));
@@ -442,8 +529,9 @@ async function scrapeAll(query = 'software engineer') {
   const allJobs = [
     ...get(indeedIndia),
     ...get(psu),
+    ...get(google),          // Google PSU results — high relevance, show early
     ...get(timesJobs),
-    ...get(adzuna),      // Adzuna first — best Indian data
+    ...get(adzuna),
     ...get(remotive),
     ...get(jobicy),
     ...get(remoteok),
@@ -472,8 +560,13 @@ async function scrapeAll(query = 'software engineer') {
   console.log(`\n✅ Saved ${jobs.length} jobs to jobs.json`);
   console.log(`   Verified: ${summary.verified} | Suspicious: ${summary.suspicious} | Dupes: ${summary.duplicates}`);
   if (!CONFIG.adzuna.enabled) {
-    console.log('\n💡 TIP: Set ADZUNA_APP_ID + ADZUNA_APP_KEY in GitHub Secrets for Indian jobs from Naukri/LinkedIn.');
+    console.log('\n💡 TIP: Set ADZUNA_APP_ID + ADZUNA_APP_KEY in GitHub Secrets for Naukri/LinkedIn Indian jobs.');
     console.log('   Register free at: https://developer.adzuna.com\n');
+  }
+  if (!CONFIG.google.enabled) {
+    console.log('💡 TIP: Set GOOGLE_CSE_KEY + GOOGLE_CSE_CX in GitHub Secrets for PSU/Govt job search via Google.');
+    console.log('   Step 1: https://programmablesearchengine.google.com → create engine for *.gov.in sites');
+    console.log('   Step 2: https://console.cloud.google.com → Enable Custom Search API → create key\n');
   }
 
   return output;
