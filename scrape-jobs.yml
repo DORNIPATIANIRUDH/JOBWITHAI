@@ -1,0 +1,273 @@
+name: Scrape IT Jobs & Update Database
+
+on:
+  schedule:
+    # Run every day at 6 AM UTC (11:30 AM IST)
+    - cron: '0 6 * * *'
+  
+  # Allow manual triggering from GitHub Actions tab
+  workflow_dispatch:
+  
+  # Run on every push to main (optional)
+  push:
+    branches:
+      - main
+    paths:
+      - 'job-scraper.js'
+      - '.github/workflows/scrape-jobs.yml'
+
+jobs:
+  scrape-jobs:
+    name: Scrape and Validate Jobs
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
+    steps:
+      # Checkout repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      # Install dependencies
+      - name: Install Dependencies
+        run: |
+          npm init -y --silent
+          npm install node-fetch axios cheerio --save
+      
+      # Run job scraper
+      - name: Run Job Scraper
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NODE_ENV: production
+        run: |
+          echo "🔍 Starting job scraper..."
+          node job-scraper.js
+          echo "✅ Scraping completed"
+          
+          # Verify output files exist
+          if [ -f "jobs.json" ]; then
+            echo "✅ jobs.json created"
+            echo "📊 Job count: $(jq '.summary.total' jobs.json)"
+          else
+            echo "⚠️ Warning: jobs.json not created"
+          fi
+      
+      # Generate markdown report
+      - name: Generate Report
+        run: |
+          node -e "
+            const { JobScraper } = require('./job-scraper.js');
+            const scraper = new JobScraper();
+            
+            // Load existing jobs.json
+            try {
+              const jobs = require('./jobs.json');
+              scraper.jobs = jobs.jobs || [];
+              scraper.duplicates = jobs.duplicates || [];
+              scraper.lastScrape = new Date();
+              
+              scraper.exportToMarkdown('jobs.md');
+              console.log('✅ Report generated: jobs.md');
+            } catch (err) {
+              console.log('⚠️ No previous jobs to report');
+            }
+          "
+        continue-on-error: true
+      
+      # Create commit message with stats
+      - name: Prepare Commit Message
+        id: commit-msg
+        run: |
+          if [ -f "jobs.json" ]; then
+            TOTAL=$(jq '.summary.total' jobs.json)
+            VERIFIED=$(jq '.summary.verified' jobs.json)
+            SUSPICIOUS=$(jq '.summary.suspicious' jobs.json)
+            DUPLICATES=$(jq '.summary.duplicates' jobs.json)
+            
+            MSG="🤖 Auto-update Job Database ($(date +'%Y-%m-%d'))
+
+📊 Statistics:
+- Total Jobs: $TOTAL
+- Verified: $VERIFIED ✓
+- Suspicious: $SUSPICIOUS ⚠️
+- Duplicates: $DUPLICATES 🔄
+
+Updated: $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            
+            echo "commit_msg<<EOF" >> $GITHUB_OUTPUT
+            echo "$MSG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      # Configure git
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Job Scraper Bot"
+      
+      # Commit and push changes
+      - name: Commit Changes
+        if: always()
+        run: |
+          git add -A
+          
+          if git diff --cached --quiet; then
+            echo "✅ No changes to commit"
+          else
+            git commit -m "${{ steps.commit-msg.outputs.commit_msg }}" || true
+            git push origin main
+            echo "✅ Changes pushed to repository"
+          fi
+      
+      # Build GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+      
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v2
+      
+      # Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+      
+      # Notify completion
+      - name: Job Completion Report
+        if: always()
+        run: |
+          echo "📌 Job Scraper Execution Report"
+          echo "=================================="
+          echo "Status: ${{ job.status }}"
+          echo "Timestamp: $(date +'%Y-%m-%d %H:%M:%S UTC')"
+          
+          if [ -f "jobs.json" ]; then
+            echo ""
+            echo "📊 Database Summary:"
+            jq '.summary' jobs.json
+          fi
+          
+          if [ -f "jobs.md" ]; then
+            echo ""
+            echo "📄 Report file: jobs.md"
+            wc -l jobs.md
+          fi
+
+  # Optional: Send notification
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: scrape-jobs
+    if: always()
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Prepare Notification
+        if: needs.scrape-jobs.result == 'success'
+        run: |
+          if [ -f "jobs.json" ]; then
+            TOTAL=$(jq '.summary.total' jobs.json)
+            echo "✅ Job scraping completed successfully!"
+            echo "📊 Found $TOTAL jobs"
+          fi
+      
+      # Optional: Send Slack notification
+      - name: Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Job Scraper Run Completed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Job Scraper Workflow*\n*Status:* ${{ needs.scrape-jobs.result }}\n*Time:* <!date^${{ job.started_at }}|{date_num} {time_secs}|Fri Jan 8 2021 4:00:15 PM UTC>"
+                  }
+                }
+              ]
+            }
+        continue-on-error: true
+
+  # Quality check job
+  quality-check:
+    name: Verify Job Data Quality
+    runs-on: ubuntu-latest
+    needs: scrape-jobs
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Validate JSON
+        run: |
+          if [ -f "jobs.json" ]; then
+            node -e "JSON.parse(require('fs').readFileSync('jobs.json'))" && \
+            echo "✅ JSON is valid" || \
+            echo "❌ JSON validation failed"
+          fi
+      
+      - name: Check Data Integrity
+        run: |
+          if [ -f "jobs.json" ]; then
+            node -e "
+              const data = require('./jobs.json');
+              
+              if (!data.summary) {
+                console.error('❌ Missing summary');
+                process.exit(1);
+              }
+              
+              if (data.summary.total === 0) {
+                console.warn('⚠️ No jobs scraped');
+              } else {
+                console.log('✅ Jobs found: ' + data.summary.total);
+                console.log('✅ Verified: ' + data.summary.verified);
+                console.log('⚠️ Suspicious: ' + data.summary.suspicious);
+              }
+            "
+          fi
+      
+      - name: Report Statistics
+        if: always()
+        run: |
+          echo "## 📊 Scraping Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "jobs.json" ]; then
+            echo "- **Total Jobs**: $(jq '.summary.total' jobs.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Verified**: $(jq '.summary.verified' jobs.json) ✓" >> $GITHUB_STEP_SUMMARY
+            echo "- **Suspicious**: $(jq '.summary.suspicious' jobs.json) ⚠️" >> $GITHUB_STEP_SUMMARY
+            echo "- **Duplicates**: $(jq '.summary.duplicates' jobs.json) 🔄" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Last Updated**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No jobs database found" >> $GITHUB_STEP_SUMMARY
+          fi
