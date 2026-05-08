@@ -76,7 +76,9 @@
   .send-btn { background:var(--accent); border:none; border-radius:clamp(8px,2vw,12px); width:clamp(40px,10vw,48px); height:clamp(40px,10vw,48px); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:clamp(18px,5vw,22px); transition:all 0.15s; flex-shrink:0; color:white; }
   .send-btn:hover:not(:disabled){opacity:0.85;transform:scale(1.05)} .send-btn:disabled{opacity:0.35;cursor:not-allowed}
   .footer-note { font-size:clamp(9px,2vw,10px); color:var(--muted); text-align:center; padding:clamp(8px,2vw,12px); font-family:var(--mono); flex-shrink:0; border-top:1px solid var(--border); }
-  @media(max-width:600px){ .key-bar{flex-direction:column;align-items:stretch} .key-bar input,.key-btn{width:100%} .bubble{max-width:95%} }
+  .provider-select { background: var(--bg); border: 1px solid var(--border); border-radius: clamp(6px,2vw,8px); padding: clamp(7px,2vw,10px) clamp(8px,2vw,10px); font-family: var(--mono); font-size: clamp(10px,2.5vw,12px); color: var(--text); outline: none; cursor: pointer; flex-shrink: 0; }
+  .provider-select:focus { border-color: var(--accent); }
+  @media(max-width:600px){ .key-bar{flex-direction:column;align-items:stretch} .key-bar input,.key-btn,.provider-select{width:100%} .bubble{max-width:95%} }
 </style>
 </head>
 <body>
@@ -97,20 +99,24 @@
   <div class="scrape-bar"><div class="scrape-progress" id="scrapeProgress"></div></div>
 
   <div class="key-bar">
-    <label>GROQ API</label>
-    <input type="password" id="apiKey" placeholder="gsk_… · free at console.groq.com" />
+    <select class="provider-select" id="providerSelect" onchange="updatePlaceholder()">
+      <option value="gemini">Gemini (works in India ✓)</option>
+      <option value="groq">Groq</option>
+    </select>
+    <input type="password" id="apiKey" placeholder="Paste Gemini key · free at aistudio.google.com" />
     <button class="key-btn" id="connectBtn" onclick="connectAndLoad()">Connect</button>
     <span class="key-status" id="keyStatus" style="color:var(--muted)">—</span>
   </div>
 
   <div class="chips">
-    <div class="chip" onclick="quickAsk('List all loaded jobs — show title, company, location, source and apply link')">🔍 Show all jobs</div>
-    <div class="chip" onclick="quickAsk('Find entry-level or junior roles from the loaded jobs')">👨‍💻 Entry-level</div>
-    <div class="chip" onclick="quickAsk('Which jobs look suspicious or fake? Show their fraud risk scores and reasons')">🚨 Spot fakes</div>
-    <div class="chip" onclick="quickAsk('Are there duplicate job postings in the loaded data?')">⚠️ Dupes</div>
+    <div class="chip" onclick="quickAsk('List all loaded jobs — show title, company, location, source and apply link')">🔍 All jobs</div>
+    <div class="chip" onclick="quickAsk('Show all PSU and government job notifications from Employment News')">🏛️ PSU / Govt</div>
+    <div class="chip" onclick="quickAsk('Show all Indian IT jobs from Indeed India')">🇮🇳 India jobs</div>
+    <div class="chip" onclick="quickAsk('Find entry-level or fresher positions from the loaded jobs')">👨‍💻 Fresher</div>
+    <div class="chip" onclick="quickAsk('Show remote jobs with salary mentioned')">🌍 Remote + Salary</div>
+    <div class="chip" onclick="quickAsk('Which jobs look suspicious or fake? Show fraud risk scores')">🚨 Spot fakes</div>
     <div class="chip" onclick="quickAsk('What skills are most in demand across all loaded jobs?')">🧠 Top skills</div>
-    <div class="chip" onclick="quickAsk('Which loaded jobs mention salary? Show amounts')">💰 Salaries</div>
-    <div class="chip" onclick="quickAsk('Show only remote jobs from the loaded list')">🌍 Remote</div>
+    <div class="chip" onclick="quickAsk('Are there duplicate job postings in the loaded data?')">⚠️ Dupes</div>
     <div class="chip" onclick="runDiag()">🔧 Diagnose</div>
     <div class="chip" onclick="clearChat()">🗑️ Clear</div>
   </div>
@@ -121,14 +127,11 @@
       <div class="bubble">
         <div class="tag ok">IT JOB AGENT · READY</div><br>
         I pull <strong>real live jobs</strong> from free APIs — no paid subscriptions needed.<br><br>
-        <strong>Architecture (zero CORS issues):</strong><br>
-        🔄 GitHub Actions runs daily → scrapes jobs → saves <code>jobs.json</code><br>
-        📂 This page reads <code>jobs.json</code> from the same server (no CORS)<br>
-        🤖 Groq AI analyses the real data when you ask questions<br><br>
         <strong>To get started:</strong><br>
-        1. Paste your free <a href="https://console.groq.com" target="_blank">Groq API key</a> above<br>
-        2. Click <strong>Connect</strong><br><br>
-        <span style="color:var(--muted);font-size:12px">⚠️ Getting "Failed to fetch"? Hit the <strong>🔧 Diagnose</strong> chip — it'll tell you exactly what's wrong.</span>
+        1. Select <strong>Gemini</strong> (recommended — works in India ✓)<br>
+        2. Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → <em>Get API key</em><br>
+        3. Paste it above and click <strong>Connect</strong><br><br>
+        <span style="color:var(--muted);font-size:12px">Groq also works but may be blocked on some Indian networks.<br>Gemini free tier: 1,500 requests/day — more than enough.</span>
       </div>
     </div>
   </div>
@@ -143,7 +146,18 @@
 
 <script>
 // ── STATE ─────────────────────────────────────────────────────
-let apiKey = '', chatHistory = [], isLoading = false, liveJobs = [], jobsFetched = false;
+let apiKey = '', provider = 'gemini', chatHistory = [], isLoading = false, liveJobs = [], jobsFetched = false;
+
+// ── PROVIDER PLACEHOLDER ──────────────────────────────────────
+function updatePlaceholder() {
+  provider = document.getElementById('providerSelect').value;
+  const input = document.getElementById('apiKey');
+  if (provider === 'gemini') {
+    input.placeholder = 'Paste Gemini key · free at aistudio.google.com';
+  } else {
+    input.placeholder = 'gsk_… · free at console.groq.com';
+  }
+}
 
 // ── HELPERS ───────────────────────────────────────────────────
 const stripHtml = h => (h||'').replace(/<[^>]*>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
@@ -181,21 +195,104 @@ async function loadJobsFromFile() {
   return d.jobs || d || [];
 }
 
-// FALLBACK: live APIs (Arbeitnow + The Muse have real CORS support)
-async function loadJobsLive() {
-  const all=[];
-  // Arbeitnow
-  try {
-    const r=await fetch('https://www.arbeitnow.com/api/job-board-api?page=1');
-    const d=await r.json();
-    all.push(...(d.data||[]).slice(0,20).map(j=>({id:`arb_${j.slug}`,title:j.title||'Unknown',company:j.company_name||'Unknown',location:j.location||(j.remote?'Remote 🌍':'Unknown'),salary:null,description:stripHtml(j.description||'').slice(0,400),tags:(j.tags||[]).slice(0,5),posted:j.created_at?new Date(j.created_at*1000).toLocaleDateString():'Recently',url:j.url||'https://www.arbeitnow.com',source:'Arbeitnow'})));
-  } catch(e){console.warn('[Arbeitnow]',e.message);}
-  // The Muse
-  try {
-    const r=await fetch('https://www.themuse.com/api/public/jobs?category=Software%20Engineer&page=0&descending=true');
-    const d=await r.json();
-    all.push(...(d.results||[]).slice(0,15).map(j=>({id:`muse_${j.id}`,title:j.name||'Unknown',company:j.company?.name||'Unknown',location:j.locations?.[0]?.name||'Unknown',salary:null,description:stripHtml(j.contents||'').slice(0,400),tags:(j.categories||[]).map(c=>c.name).slice(0,4),posted:j.publication_date?new Date(j.publication_date).toLocaleDateString():'Recently',url:j.refs?.landing_page||'https://www.themuse.com',source:'The Muse'})));
-  } catch(e){console.warn('[The Muse]',e.message);}
+// ── RSS PARSER (browser) ──────────────────────────────────────
+function parseRSS(xml) {
+  const items=[], matches=xml.match(/<item[\s\S]*?<\/item>/gi)||[];
+  for(const item of matches){
+    const get=tag=>{
+      const m=item.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i'))
+              ||item.match(new RegExp(`<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i'));
+      return m?m[1].trim():'';
+    };
+    items.push({title:get('title'),link:get('link')||get('guid'),description:get('description'),pubDate:get('pubDate')});
+  }
+  return items;
+}
+
+const PROXY = 'https://corsproxy.io/?';
+
+// FALLBACK: live APIs — Indian + global sources
+async function loadJobsLive(query='software engineer') {
+  const all=[], results=await Promise.allSettled([
+
+    // ── Indeed India (via CORS proxy) — Real Indian IT jobs ──
+    fetch(`${PROXY}${encodeURIComponent(`https://in.indeed.com/rss?q=${encodeURIComponent(query)}&l=India&limit=20&fromage=14`)}`)
+      .then(r=>r.text()).then(xml=>{
+        const items=parseRSS(xml);
+        return items.slice(0,20).map((item,i)=>{
+          const parts=(item.title||'').split(' - ');
+          return {id:`indeed_in_${i}`,title:parts[0]?.trim()||'Unknown',company:parts[1]?.trim()||'Unknown',
+            location:'India 🇮🇳',salary:null,description:stripHtml(item.description||'').slice(0,400),
+            tags:['India','IT'],posted:item.pubDate?new Date(item.pubDate).toLocaleDateString():'Recently',
+            url:item.link||'https://in.indeed.com',source:'Indeed India'};
+        });
+      }),
+
+    // ── Employment News PSU (via CORS proxy) ──
+    fetch(`${PROXY}${encodeURIComponent('https://employmentnews.gov.in/NewFeed/FeedHandler.ashx')}`)
+      .then(r=>r.text()).then(xml=>{
+        const items=parseRSS(xml);
+        return items.slice(0,15).map((item,i)=>({
+          id:`psu_${i}`,title:stripHtml(item.title)||'PSU Notification',company:'Government / PSU',
+          location:'India 🇮🇳',salary:null,description:stripHtml(item.description||'').slice(0,400),
+          tags:['PSU','Government','India'],posted:item.pubDate?new Date(item.pubDate).toLocaleDateString():'Recently',
+          url:item.link||'https://employmentnews.gov.in',source:'Employment News (PSU)'
+        }));
+      }),
+
+    // ── Remotive — Remote IT jobs (CORS native) ──
+    fetch(`https://remotive.com/api/remote-jobs?category=software-dev&search=${encodeURIComponent(query)}&limit=20`)
+      .then(r=>r.json()).then(d=>(d.jobs||[]).slice(0,20).map(j=>({
+        id:`remotive_${j.id}`,title:j.title||'Unknown',company:j.company_name||'Unknown',
+        location:j.candidate_required_location||'Remote 🌍',salary:j.salary||null,
+        description:stripHtml(j.description||'').slice(0,400),tags:(j.tags||[]).slice(0,5),
+        posted:j.publication_date?new Date(j.publication_date).toLocaleDateString():'Recently',
+        url:j.url||'https://remotive.com',source:'Remotive'
+      }))),
+
+    // ── Jobicy — Remote jobs (CORS native) ──
+    fetch(`https://jobicy.com/api/v2/remote-jobs?count=20&tag=${encodeURIComponent(query.split(' ')[0])}`)
+      .then(r=>r.json()).then(d=>(d.jobs||[]).slice(0,20).map(j=>({
+        id:`jobicy_${j.id}`,title:j.jobTitle||'Unknown',company:j.companyName||'Unknown',
+        location:j.jobGeo||'Remote 🌍',
+        salary:j.annualSalaryMin?`$${j.annualSalaryMin.toLocaleString()}–$${(j.annualSalaryMax||j.annualSalaryMin).toLocaleString()}`:null,
+        description:stripHtml(j.jobDescription||'').slice(0,400),
+        tags:[...(j.jobIndustry||[]),...(j.jobType||[])].slice(0,5),
+        posted:j.pubDate?new Date(j.pubDate).toLocaleDateString():'Recently',
+        url:j.url||'https://jobicy.com',source:'Jobicy'
+      }))),
+
+    // ── Arbeitnow (CORS native) ──
+    fetch('https://www.arbeitnow.com/api/job-board-api?page=1')
+      .then(r=>r.json()).then(d=>{
+        const q=query.toLowerCase();
+        return (d.data||[]).filter(j=>!q||(j.title||'').toLowerCase().includes(q)||(j.tags||[]).some(t=>t.toLowerCase().includes(q)))
+          .slice(0,15).map(j=>({
+            id:`arb_${j.slug}`,title:j.title||'Unknown',company:j.company_name||'Unknown',
+            location:j.location||(j.remote?'Remote 🌍':'Unknown'),salary:null,
+            description:stripHtml(j.description||'').slice(0,400),tags:(j.tags||[]).slice(0,5),
+            posted:j.created_at?new Date(j.created_at*1000).toLocaleDateString():'Recently',
+            url:j.url||'https://www.arbeitnow.com',source:'Arbeitnow'
+          }));
+      }),
+
+    // ── The Muse (CORS native) ──
+    fetch('https://www.themuse.com/api/public/jobs?category=Software%20Engineer&page=0&descending=true')
+      .then(r=>r.json()).then(d=>(d.results||[]).slice(0,10).map(j=>({
+        id:`muse_${j.id}`,title:j.name||'Unknown',company:j.company?.name||'Unknown',
+        location:j.locations?.[0]?.name||'Unknown',salary:null,
+        description:stripHtml(j.contents||'').slice(0,400),
+        tags:(j.categories||[]).map(c=>c.name).slice(0,4),
+        posted:j.publication_date?new Date(j.publication_date).toLocaleDateString():'Recently',
+        url:j.refs?.landing_page||'https://www.themuse.com',source:'The Muse'
+      })))
+  ]);
+
+  results.forEach((r,i)=>{
+    const names=['Indeed India','Employment News PSU','Remotive','Jobicy','Arbeitnow','The Muse'];
+    if(r.status==='fulfilled') all.push(...(r.value||[]));
+    else console.warn(`[${names[i]}] failed:`, r.reason?.message||r.reason);
+  });
   return all;
 }
 
@@ -207,7 +304,7 @@ async function loadJobs() {
     setProgress(70);
   } catch(e) {
     appendMsg('ai','<span style="color:var(--muted);font-size:12px">⚙️ <code>jobs.json</code> not found — trying live APIs…</span>');
-    try { jobs=await loadJobsLive(); source='live APIs (Arbeitnow + The Muse)'; setProgress(70); }
+    try { jobs=await loadJobsLive('software engineer'); source='Indeed India · PSU · Remotive · Jobicy · Arbeitnow · The Muse'; setProgress(70); }
     catch(e2) {
       setProgress(0);
       appendMsg('ai','<div class="tag error">JOBS FAILED TO LOAD</div><br>Neither <code>jobs.json</code> nor live APIs worked.<br><br>Fix: run <code>node job-scraper.js</code> and push <code>jobs.json</code> to your repo.');
@@ -247,45 +344,66 @@ function setProgress(p){document.getElementById('scrapeProgress').style.width=p+
 
 // ── CONNECT ───────────────────────────────────────────────────
 async function connectAndLoad() {
-  const k=document.getElementById('apiKey').value.trim();
-  if(!k||k.length<10){
-    document.getElementById('keyStatus').textContent='✗ key too short';
-    document.getElementById('keyStatus').style.color='var(--danger)'; return;
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k || k.length < 10) {
+    document.getElementById('keyStatus').textContent = '✗ key too short';
+    document.getElementById('keyStatus').style.color = 'var(--danger)'; return;
   }
-  apiKey=k;
-  const btn=document.getElementById('connectBtn');
-  btn.disabled=true; btn.textContent='Testing…';
-  document.getElementById('apiKey').value='•'.repeat(20);
+  provider = document.getElementById('providerSelect').value;
+  apiKey = k;
+  const btn = document.getElementById('connectBtn');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  document.getElementById('apiKey').value = '•'.repeat(20);
 
-  const ok=await testGroq();
-  if(!ok){btn.disabled=false;btn.textContent='Connect';return;}
+  const ok = await testConnection();
+  if (!ok) { btn.disabled = false; btn.textContent = 'Connect'; return; }
 
-  document.getElementById('keyStatus').textContent='✓ key valid';
-  document.getElementById('keyStatus').style.color='var(--success)';
+  document.getElementById('keyStatus').textContent = `✓ ${provider} connected`;
+  document.getElementById('keyStatus').style.color = 'var(--success)';
   document.getElementById('statusDot').classList.add('active');
-  document.getElementById('sendBtn').disabled=false;
-  btn.textContent='Connected ✓';
-  document.getElementById('agentSub').textContent='Loading jobs…';
+  document.getElementById('sendBtn').disabled = false;
+  btn.textContent = 'Connected ✓';
+  document.getElementById('agentSub').textContent = 'Loading jobs…';
   await loadJobs();
-  document.getElementById('agentSub').textContent=`${liveJobs.length} jobs loaded ✓`;
+  document.getElementById('agentSub').textContent = `${liveJobs.length} jobs loaded ✓`;
 }
 
-// ── GROQ TEST ────────────────────────────────────────────────
-async function testGroq() {
+// ── CONNECTION TEST ───────────────────────────────────────────
+async function testConnection() {
   try {
-    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'OK'}],max_tokens:3})
-    });
-    if(r.status===401){
-      appendMsg('ai','<div class="tag error">INVALID KEY (401)</div><br>Your Groq key was rejected.<br>Get a new one at <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys → Create new key.');
-      return false;
+    if (provider === 'gemini') {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{role:'user',parts:[{text:'Hi'}]}], generationConfig:{maxOutputTokens:5} }) }
+      );
+      if (r.status === 400) {
+        const e = await r.json();
+        // 400 with INVALID_ARGUMENT often means key format wrong
+        appendMsg('ai', `<div class="tag error">INVALID GEMINI KEY</div><br>${e?.error?.message||'Key rejected'}<br><br>Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → <em>Get API key</em>`);
+        return false;
+      }
+      if (r.status === 403) {
+        appendMsg('ai', `<div class="tag error">GEMINI KEY REJECTED (403)</div><br>Key may be invalid or API not enabled.<br>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> and create a new key.`);
+        return false;
+      }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return true;
+    } else {
+      // Groq
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body: JSON.stringify({ model:'llama-3.3-70b-versatile', messages:[{role:'user',content:'Hi'}], max_tokens:3 })
+      });
+      if (r.status === 401) {
+        appendMsg('ai','<div class="tag error">INVALID GROQ KEY (401)</div><br>Get a fresh key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>');
+        return false;
+      }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return true;
     }
-    if(r.status===429){appendMsg('ai','<div class="tag error">RATE LIMITED (429)</div><br>Free tier limit hit. Wait 60 seconds and try again.');return false;}
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    return true;
-  } catch(e){showNetworkError(e);return false;}
+  } catch(e) { showNetworkError(e); return false; }
 }
 
 // ── NETWORK ERROR DIAGNOSTICS ─────────────────────────────────
@@ -322,10 +440,12 @@ async function runDiag() {
   } else {
     results.push({label:'Groq API',ok:null,detail:'No key entered yet'});
   }
-  try{const r=await fetch('https://www.arbeitnow.com/api/job-board-api?page=1');results.push({label:'Arbeitnow (live jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+  try{const r=await fetch('https://remotive.com/api/remote-jobs?category=software-dev&limit=1');results.push({label:'Remotive (remote jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+  catch(e){results.push({label:'Remotive',ok:false,detail:e.message});}
+  try{const r=await fetch('https://jobicy.com/api/v2/remote-jobs?count=1');results.push({label:'Jobicy (remote jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
+  catch(e){results.push({label:'Jobicy',ok:false,detail:e.message});}
+  try{const r=await fetch('https://www.arbeitnow.com/api/job-board-api?page=1');results.push({label:'Arbeitnow',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
   catch(e){results.push({label:'Arbeitnow',ok:false,detail:e.message});}
-  try{const r=await fetch('https://www.themuse.com/api/public/jobs?page=0');results.push({label:'The Muse (live jobs)',ok:r.ok,detail:r.ok?'✓ reachable':`HTTP ${r.status}`});}
-  catch(e){results.push({label:'The Muse',ok:false,detail:e.message});}
   const rows=results.map(r=>{
     const ic=r.ok===null?'<span class="warn">?</span>':r.ok?'<span class="pass">✓</span>':'<span class="fail">✗</span>';
     return `${ic} <strong>${r.label}</strong>: ${r.detail}`;
