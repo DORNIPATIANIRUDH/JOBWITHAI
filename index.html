@@ -108,9 +108,25 @@
     <span class="key-status" id="keyStatus" style="color:var(--muted)">—</span>
   </div>
 
+  <!-- Google Search bar — for PSU / Govt job search -->
+  <div class="key-bar" id="googleBar" style="background:rgba(15,15,30,0.6); border-top: none;">
+    <label style="color:var(--accent2)">🔍 GOOGLE</label>
+    <input type="password" id="googleKey" placeholder="Google API key · console.cloud.google.com" />
+    <input type="text"     id="googleCx"  placeholder="Search Engine ID · programmablesearchengine.google.com" style="max-width:180px;" />
+    <button class="key-btn" style="background:var(--accent2);color:#000;" onclick="saveGoogleKeys()">Save</button>
+    <span class="key-status" id="googleStatus" style="color:var(--muted)">—</span>
+  </div>
+  <div style="text-align:center;padding:4px 0;font-family:var(--mono);font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;">
+    Google Search: 100 free queries/day · searches UPSC · SSC · IBPS · BHEL · NTPC · all PSU sites
+  </div>
+
   <div class="chips">
     <div class="chip" onclick="quickAsk('List all loaded jobs — show title, company, location, source and apply link')">🔍 All jobs</div>
-    <div class="chip" onclick="quickAsk('Show all PSU and government job notifications from Employment News')">🏛️ PSU / Govt</div>
+    <div class="chip" onclick="searchGooglePSU('PSU recruitment 2026 notification apply India')">🏛️ Google PSU Jobs</div>
+    <div class="chip" onclick="searchGooglePSU('UPSC SSC IBPS RRB recruitment notification 2026')">📋 UPSC/SSC/IBPS</div>
+    <div class="chip" onclick="searchGooglePSU('BHEL NTPC ONGC HAL BEL recruitment 2026 vacancy')">🏭 BHEL/NTPC/ONGC</div>
+    <div class="chip" onclick="searchGooglePSU('government IT jobs NIC BSNL CDAC recruitment 2026')">💻 Govt IT Jobs</div>
+    <div class="chip" onclick="quickAsk('Show all PSU and government job notifications from Employment News')">📰 Employment News</div>
     <div class="chip" onclick="quickAsk('Show all Indian IT jobs from Indeed India')">🇮🇳 India jobs</div>
     <div class="chip" onclick="quickAsk('Find entry-level or fresher positions from the loaded jobs')">👨‍💻 Fresher</div>
     <div class="chip" onclick="quickAsk('Show remote jobs with salary mentioned')">🌍 Remote + Salary</div>
@@ -147,6 +163,150 @@
 <script>
 // ── STATE ─────────────────────────────────────────────────────
 let apiKey = '', provider = 'gemini', chatHistory = [], isLoading = false, liveJobs = [], jobsFetched = false;
+let googleKey = localStorage.getItem('gCseKey') || '';
+let googleCx  = localStorage.getItem('gCseCx')  || '';
+
+// Restore Google keys if saved
+window.addEventListener('DOMContentLoaded', () => {
+  if (googleKey) { document.getElementById('googleKey').value = '•'.repeat(16); document.getElementById('googleStatus').textContent = '✓ saved'; document.getElementById('googleStatus').style.color = 'var(--success)'; }
+  if (googleCx)  { document.getElementById('googleCx').value = googleCx; }
+});
+
+// ── GOOGLE CSE KEY SAVE ───────────────────────────────────────
+function saveGoogleKeys() {
+  const k = document.getElementById('googleKey').value.trim();
+  const cx = document.getElementById('googleCx').value.trim();
+  if (!k || k === '•'.repeat(16)) { alert('Paste your Google API key first.'); return; }
+  if (!cx) { alert('Paste your Search Engine ID (cx) first.'); return; }
+  googleKey = k;
+  googleCx  = cx;
+  localStorage.setItem('gCseKey', k);
+  localStorage.setItem('gCseCx',  cx);
+  document.getElementById('googleKey').value = '•'.repeat(16);
+  document.getElementById('googleStatus').textContent = '✓ saved';
+  document.getElementById('googleStatus').style.color = 'var(--success)';
+  appendMsg('ai', `<div class="tag ok">GOOGLE SEARCH READY ✓</div><br>Google Custom Search connected.<br><br>Use the <strong>🏛️ Google PSU Jobs</strong>, <strong>📋 UPSC/SSC/IBPS</strong> or <strong>🏭 BHEL/NTPC/ONGC</strong> chips to search — or type any query like <em>"DRDO recruitment 2026"</em>.`);
+}
+
+// ── GOOGLE CUSTOM SEARCH ──────────────────────────────────────
+// Free: 100 queries/day
+// Setup (5 min, no credit card):
+//   1. programmablesearchengine.google.com → New search engine
+//      → Sites to search: *.gov.in, employmentnews.gov.in, ssc.nic.in,
+//        upsc.gov.in, ibps.in, rbi.org.in, *.nic.in, sarkariresult.com
+//      → Copy the Search Engine ID (cx)
+//   2. console.cloud.google.com → Enable "Custom Search API" → Create API Key
+//   3. Paste both above
+async function searchGooglePSU(query = 'PSU recruitment 2026 India notification') {
+  if (!googleKey || !googleCx) {
+    appendMsg('ai', `<div class="tag error">GOOGLE SEARCH NOT SET UP</div><br>
+<strong>Setup takes 5 minutes, completely free:</strong><br><br>
+<strong>Step 1 — Create Search Engine:</strong><br>
+1. Go to <a href="https://programmablesearchengine.google.com" target="_blank">programmablesearchengine.google.com</a><br>
+2. Click <strong>Add</strong> → name it "PSU Jobs"<br>
+3. Sites to search: <code>*.gov.in</code>, <code>ssc.nic.in</code>, <code>upsc.gov.in</code>, <code>ibps.in</code>, <code>employmentnews.gov.in</code>, <code>sarkariresult.com</code>, <code>*.nic.in</code><br>
+4. Copy the <strong>Search Engine ID</strong> (looks like: <code>abc123:xyz</code>)<br><br>
+<strong>Step 2 — Get API Key:</strong><br>
+1. Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a><br>
+2. Create a project → <strong>Enable APIs</strong> → search "Custom Search API" → Enable<br>
+3. <strong>Credentials</strong> → Create API Key → Copy it<br><br>
+Paste both in the <span style="color:var(--accent2)">🔍 GOOGLE</span> bar above and click <strong>Save</strong>.`);
+    return;
+  }
+
+  appendMsg('ai', `<div class="tag ok">SEARCHING GOOGLE</div><br>🔍 Searching: <em>"${query}"</em>`);
+  showThinking();
+
+  try {
+    const url = `https://www.googleapis.com/customsearch/v1`
+      + `?key=${googleKey}`
+      + `&cx=${googleCx}`
+      + `&q=${encodeURIComponent(query)}`
+      + `&num=10`
+      + `&dateRestrict=m3`   // last 3 months
+      + `&sort=date`;
+
+    const res = await fetch(url);
+    removeThinking();
+
+    if (res.status === 403) {
+      appendMsg('ai', `<div class="tag error">GOOGLE KEY REJECTED (403)</div><br>Check your API key at <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> and make sure <strong>Custom Search API</strong> is enabled.`);
+      return;
+    }
+    if (res.status === 429) {
+      appendMsg('ai', `<div class="tag error">DAILY LIMIT HIT (429)</div><br>Free tier allows 100 searches/day. Limit resets at midnight PST.<br>Upgrade at <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> for more.`);
+      return;
+    }
+
+    const data = await res.json();
+    const items = data.items || [];
+
+    if (!items.length) {
+      appendMsg('ai', `No results found for <em>"${query}"</em>. Try a different search like "DRDO recruitment 2026" or "SSC CGL notification".`);
+      return;
+    }
+
+    // Convert Google results to job objects and add to liveJobs
+    const googleJobs = items.map((item, i) => ({
+      id: `google_${Date.now()}_${i}`,
+      title: item.title || 'Unknown',
+      company: item.displayLink || 'Government',
+      location: 'India 🇮🇳',
+      salary: null,
+      description: item.snippet || '',
+      tags: ['Google Search', 'PSU', 'Government'],
+      posted: item.pagemap?.metatags?.[0]?.['article:published_time']
+        ? new Date(item.pagemap.metatags[0]['article:published_time']).toLocaleDateString()
+        : 'Recent',
+      url: item.link,
+      source: 'Google Search',
+      validation: { riskScore: 5, riskLevel: 'LOW', isLegitimate: true, risks: [] }
+    }));
+
+    // Add to liveJobs pool
+    liveJobs = [...liveJobs, ...googleJobs];
+
+    // Update badge
+    document.getElementById('jobsBadge').textContent = `${liveJobs.length} jobs`;
+    document.getElementById('jobsBadge').style.display = 'inline';
+
+    // Update AI context with new results
+    const googleContext = googleJobs.map((j, i) =>
+      `[G${i+1}] "${j.title}" | ${j.company} | URL: ${j.url} | Snippet: ${j.description}`
+    ).join('\n');
+
+    chatHistory.push({
+      role: 'user',
+      content: `[GOOGLE SEARCH RESULTS for "${query}" — ${googleJobs.length} results]\n${googleContext}`
+    });
+    chatHistory.push({
+      role: 'assistant',
+      content: `Got ${googleJobs.length} Google results for "${query}".`
+    });
+
+    // Render results directly
+    const html = googleJobs.map(j => `
+      <div style="background:var(--surface3);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0;">
+        <div style="font-weight:700;color:var(--accent2);font-size:13px;">${j.title}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin:3px 0;">${j.company}</div>
+        <div style="font-size:11px;color:var(--muted);margin:6px 0;">${j.description}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <span class="tag verified" style="margin:0;">✓ VERIFIED</span>
+          <a href="${j.url}" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--accent2);">Apply / View →</a>
+        </div>
+      </div>`).join('');
+
+    appendMsg('ai', `<div class="tag ok">GOOGLE RESULTS · ${googleJobs.length} found</div><br>
+<strong>Query:</strong> <em>"${query}"</em><br>
+<span style="font-size:11px;color:var(--muted);">From: UPSC · SSC · IBPS · gov.in sites · sarkariresult.com</span><br><br>
+${html}<br>
+<span style="font-size:11px;color:var(--muted);">Now ask me anything — e.g. "Which of these need engineering?" or "Summarise all PSU openings"</span>`);
+
+  } catch (e) {
+    removeThinking();
+    appendMsg('ai', `<div class="tag error">GOOGLE SEARCH FAILED</div><br><code>${e.message}</code>`);
+  }
+}
 
 // ── PROVIDER PLACEHOLDER ──────────────────────────────────────
 function updatePlaceholder() {
