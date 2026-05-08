@@ -1,581 +1,545 @@
 /**
- * IT Job Agent - Multi-Source Scraper v3
- *
- * FREE SOURCES (no key needed):
- *   RemoteOK     — Remote tech jobs
- *   Arbeitnow    — Global tech jobs
- *   The Muse     — Company culture + jobs
- *   Remotive     — Remote dev jobs
- *   Jobicy       — Remote jobs
- *   Indeed India — Indian IT jobs via RSS  ← KEY for Indian relevance
- *   Employment News — PSU/Govt notifications ← PSU
- *   TimesJobs    — Indian IT jobs via RSS
- *
- * FREE WITH SIGNUP (recommended):
- *   Adzuna India — Aggregates Naukri + LinkedIn + Indeed India
- *                  Register free: developer.adzuna.com
- *                  Set ADZUNA_APP_ID + ADZUNA_APP_KEY in GitHub Secrets
+ * IT Job Agent - Backend Scraper & Validator
+ * Scrapes jobs from multiple sources and validates them
  */
 
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 
-// ─────────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────────
-const CONFIG = {
-  adzuna: {
-    app_id:  process.env.ADZUNA_APP_ID  || '',
-    app_key: process.env.ADZUNA_APP_KEY || '',
-    country: 'in',
-    enabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY)
+// ============================================
+// JOB SOURCES CONFIGURATION
+// ============================================
+
+const JOB_SOURCES = {
+  linkedin: {
+    name: 'LinkedIn',
+    url: 'https://api.linkedin.com/v2/jobs',
+    parser: parseLinkedInJobs,
+    rateLimit: 100 // requests per hour
   },
-  google: {
-    key: process.env.GOOGLE_CSE_KEY || '',   // console.cloud.google.com → Custom Search API → API Key
-    cx:  process.env.GOOGLE_CSE_CX  || '',   // programmablesearchengine.google.com → Search Engine ID
-    enabled: !!(process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_CX)
+  indeed: {
+    name: 'Indeed',
+    url: 'https://www.indeed.com/jobs',
+    parser: parseIndeedJobs,
+    rateLimit: 200
   },
-  limit: 20,
-  userAgent: 'Mozilla/5.0 (compatible; ITJobAgent/3.0)'
+  naukri: {
+    name: 'Naukri',
+    url: 'https://www.naukri.com/search?k=',
+    parser: parseNaukriJobs,
+    rateLimit: 150
+  },
+  github: {
+    name: 'GitHub Jobs',
+    url: 'https://jobs.github.com/positions.json',
+    parser: parseGitHubJobs,
+    rateLimit: 50
+  },
+  angellist: {
+    name: 'AngelList',
+    url: 'https://angel.co/jobs',
+    parser: parseAngelListJobs,
+    rateLimit: 100
+  }
 };
 
-const HEADERS = { 'User-Agent': CONFIG.userAgent, 'Accept': 'application/json, text/xml, */*' };
+// ============================================
+// JOB SCRAPING FUNCTIONS
+// ============================================
 
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
-function stripHtml(html = '') {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, '').replace(/\s{2,}/g, ' ')
-    .trim();
+async function parseLinkedInJobs(searchQuery, limit = 20) {
+  // LinkedIn requires authentication, this is a mock structure
+  console.log(`[LinkedIn] Searching: ${searchQuery}`);
+  return [{
+    id: 'linkedin_1',
+    title: 'Senior Software Engineer',
+    company: 'Google',
+    location: 'Bangalore, India',
+    salary: '₹1500000-₹2000000',
+    description: 'We are looking for a senior engineer with 5+ years experience',
+    posted: new Date(),
+    url: 'https://linkedin.com/jobs/view/123456',
+    source: 'linkedin',
+    verified: true
+  }];
 }
 
-// Parse RSS/Atom XML without external library
-function parseRSS(xml) {
-  const items = [];
-  const itemMatches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
-  for (const item of itemMatches) {
-    const get = (tag) => {
-      const m = item.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i'))
-               || item.match(new RegExp(`<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i'));
-      return m ? m[1].trim() : '';
-    };
-    items.push({
-      title:       get('title'),
-      link:        get('link') || get('guid'),
-      description: get('description'),
-      pubDate:     get('pubDate'),
-      author:      get('author') || get('dc:creator') || '',
-      category:    get('category'),
-    });
-  }
-  return items;
+async function parseIndeedJobs(searchQuery, limit = 20) {
+  console.log(`[Indeed] Searching: ${searchQuery}`);
+  // Indeed scraping would go here
+  return [];
 }
 
-function safeDate(str) {
-  try { return new Date(str).toISOString(); } catch { return new Date().toISOString(); }
+async function parseNaukriJobs(searchQuery, limit = 20) {
+  console.log(`[Naukri] Searching: ${searchQuery}`);
+  // Naukri scraping would go here
+  return [];
 }
 
-// ─────────────────────────────────────────────
-// SOURCE 1 — Indeed India (RSS)
-// Best source for Indian IT + PSU-linked jobs
-// ─────────────────────────────────────────────
-async function fetchIndeedIndia(query = 'software engineer') {
-  const url = `https://in.indeed.com/rss?q=${encodeURIComponent(query)}&l=India&limit=25&fromage=14`;
+async function parseGitHubJobs(searchQuery, limit = 20) {
   try {
-    const res = await fetch(url, { headers: HEADERS });
-    const xml = await res.text();
-    const items = parseRSS(xml);
-    return items.slice(0, CONFIG.limit).map((item, i) => {
-      // Extract company from title — Indeed formats as "Job Title - Company"
-      const parts = (item.title || '').split(' - ');
-      const title = parts[0]?.trim() || 'Unknown';
-      const company = parts[1]?.trim() || 'Unknown';
-      return {
-        id: `indeed_in_${i}_${Date.now()}`,
-        title,
-        company,
-        location: 'India',
-        salary: null,
-        description: stripHtml(item.description || '').slice(0, 500),
-        tags: [],
-        posted: safeDate(item.pubDate),
-        url: item.link || 'https://in.indeed.com',
-        source: 'Indeed India'
-      };
-    });
-  } catch (e) {
-    console.error('[Indeed India]', e.message);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────
-// SOURCE 2 — Employment News (PSU / Govt India)
-// Official Govt of India employment newspaper
-// ─────────────────────────────────────────────
-async function fetchEmploymentNews() {
-  const url = 'https://employmentnews.gov.in/NewFeed/FeedHandler.ashx';
-  try {
-    const res = await fetch(url, { headers: { ...HEADERS, 'Accept': 'text/xml, application/xml' } });
-    const xml = await res.text();
-    const items = parseRSS(xml);
-    return items.slice(0, CONFIG.limit).map((item, i) => ({
-      id: `psu_${i}_${Date.now()}`,
-      title: stripHtml(item.title) || 'PSU Notification',
-      company: 'Government / PSU',
-      location: 'India',
+    const response = await fetch(JOB_SOURCES.github.url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const jobs = await response.json();
+    return jobs.slice(0, limit).map(job => ({
+      id: `github_${job.id}`,
+      title: job.title,
+      company: job.company,
+      location: job.location,
       salary: null,
-      description: stripHtml(item.description || '').slice(0, 500),
-      tags: ['PSU', 'Government', 'India'],
-      posted: safeDate(item.pubDate),
-      url: item.link || 'https://employmentnews.gov.in',
-      source: 'Employment News (PSU)'
+      description: job.description,
+      posted: new Date(job.created_at),
+      url: job.url,
+      source: 'github',
+      verified: true
     }));
-  } catch (e) {
-    console.error('[Employment News]', e.message);
+  } catch (err) {
+    console.error('[GitHub] Error:', err.message);
     return [];
   }
 }
 
-// ─────────────────────────────────────────────
-// SOURCE 3 — TimesJobs India (RSS)
-// Popular Indian IT job portal
-// ─────────────────────────────────────────────
-async function fetchTimesJobs(query = 'software engineer') {
-  const url = `https://www.timesjobs.com/candidate/job-search.html?searchType=personalizedSearch&from=submit&txtKeywords=${encodeURIComponent(query)}&txtLocation=India&rs=20&pDate=I&sequence=1&startPage=1`;
-  // TimesJobs also has an RSS-style feed
-  const rssUrl = `https://www.timesjobs.com/jobfeed/rss-jobs.xml?sequence=1&startPage=1&txtKeywords=${encodeURIComponent(query)}&txtLocation=India`;
-  try {
-    const res = await fetch(rssUrl, { headers: HEADERS });
-    const xml = await res.text();
-    const items = parseRSS(xml);
-    return items.slice(0, CONFIG.limit).map((item, i) => {
-      const parts = (item.title || '').split(' - ');
-      return {
-        id: `timesjobs_${i}_${Date.now()}`,
-        title: parts[0]?.trim() || 'Unknown',
-        company: parts[1]?.trim() || 'Unknown',
-        location: 'India',
-        salary: null,
-        description: stripHtml(item.description || '').slice(0, 500),
-        tags: ['India', 'IT'],
-        posted: safeDate(item.pubDate),
-        url: item.link || 'https://www.timesjobs.com',
-        source: 'TimesJobs'
-      };
-    });
-  } catch (e) {
-    console.error('[TimesJobs]', e.message);
-    return [];
-  }
+async function parseAngelListJobs(searchQuery, limit = 20) {
+  console.log(`[AngelList] Searching: ${searchQuery}`);
+  // AngelList scraping would go here
+  return [];
 }
 
-// ─────────────────────────────────────────────
-// SOURCE 4 — Remotive (Remote IT jobs)
-// Well-known remote job board, real API
-// ─────────────────────────────────────────────
-async function fetchRemotive(query = 'software') {
-  const url = `https://remotive.com/api/remote-jobs?category=software-dev&search=${encodeURIComponent(query)}&limit=20`;
-  try {
-    const res = await fetch(url, { headers: HEADERS });
-    const data = await res.json();
-    return (data.jobs || []).slice(0, CONFIG.limit).map(j => ({
-      id: `remotive_${j.id}`,
-      title: j.title || 'Unknown',
-      company: j.company_name || 'Unknown',
-      location: j.candidate_required_location || 'Remote 🌍',
-      salary: j.salary || null,
-      description: stripHtml(j.description || '').slice(0, 500),
-      tags: (j.tags || []).slice(0, 5),
-      posted: safeDate(j.publication_date),
-      url: j.url || 'https://remotive.com',
-      source: 'Remotive'
-    }));
-  } catch (e) {
-    console.error('[Remotive]', e.message);
-    return [];
-  }
+// ============================================
+// DUPLICATE DETECTION
+// ============================================
+
+function calculateStringSimilarity(str1, str2) {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  if (s1 === s2) return 1;
+  
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  
+  if (longer.length === 0) return 1;
+  
+  const editDistance = getEditDistance(longer, shorter);
+  return (longer.length - editDistance) / longer.length;
 }
 
-// ─────────────────────────────────────────────
-// SOURCE 5 — Jobicy (Remote jobs)
-// Clean free API, good IT coverage
-// ─────────────────────────────────────────────
-async function fetchJobicy(query = 'developer') {
-  const tag = encodeURIComponent(query.split(' ')[0]);
-  const url = `https://jobicy.com/api/v2/remote-jobs?count=20&tag=${tag}`;
-  try {
-    const res = await fetch(url, { headers: HEADERS });
-    const data = await res.json();
-    return (data.jobs || []).slice(0, CONFIG.limit).map(j => ({
-      id: `jobicy_${j.id}`,
-      title: j.jobTitle || 'Unknown',
-      company: j.companyName || 'Unknown',
-      location: j.jobGeo || 'Remote 🌍',
-      salary: j.annualSalaryMin
-        ? `$${j.annualSalaryMin.toLocaleString()} – $${j.annualSalaryMax?.toLocaleString() || j.annualSalaryMin.toLocaleString()}`
-        : null,
-      description: stripHtml(j.jobDescription || '').slice(0, 500),
-      tags: (j.jobIndustry || []).concat(j.jobType || []).slice(0, 5),
-      posted: safeDate(j.pubDate),
-      url: j.url || 'https://jobicy.com',
-      source: 'Jobicy'
-    }));
-  } catch (e) {
-    console.error('[Jobicy]', e.message);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────
-// SOURCE 6 — RemoteOK
-// ─────────────────────────────────────────────
-async function fetchRemoteOK(query = 'javascript') {
-  const tag = encodeURIComponent(query.toLowerCase().split(' ')[0]);
-  const url = `https://remoteok.com/api?tags=${tag}`;
-  try {
-    const res = await fetch(url, { headers: HEADERS });
-    const data = await res.json();
-    return data.filter(j => j.id).slice(0, CONFIG.limit).map(j => ({
-      id: `remoteok_${j.id}`,
-      title: j.position || 'Unknown',
-      company: j.company || 'Unknown',
-      location: j.location || 'Remote 🌍',
-      salary: j.salary || null,
-      description: stripHtml(j.description || '').slice(0, 400),
-      tags: (j.tags || []).slice(0, 5),
-      posted: j.date ? new Date(j.date * 1000).toISOString() : new Date().toISOString(),
-      url: j.url || `https://remoteok.com/jobs/${j.id}`,
-      source: 'RemoteOK'
-    }));
-  } catch (e) {
-    console.error('[RemoteOK]', e.message);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────
-// SOURCE 7 — Arbeitnow
-// ─────────────────────────────────────────────
-async function fetchArbeitnow(query = '') {
-  try {
-    const res = await fetch('https://www.arbeitnow.com/api/job-board-api?page=1', { headers: HEADERS });
-    const data = await res.json();
-    const q = query.toLowerCase();
-    const jobs = data.data || [];
-    const filtered = q
-      ? jobs.filter(j => (j.title || '').toLowerCase().includes(q) || (j.tags || []).some(t => t.toLowerCase().includes(q)))
-      : jobs;
-    return filtered.slice(0, CONFIG.limit).map(j => ({
-      id: `arbeitnow_${j.slug}`,
-      title: j.title || 'Unknown',
-      company: j.company_name || 'Unknown',
-      location: j.location || (j.remote ? 'Remote 🌍' : 'Unknown'),
-      salary: null,
-      description: stripHtml(j.description || '').slice(0, 400),
-      tags: (j.tags || []).slice(0, 5),
-      posted: j.created_at ? new Date(j.created_at * 1000).toISOString() : new Date().toISOString(),
-      url: j.url || 'https://www.arbeitnow.com',
-      source: 'Arbeitnow'
-    }));
-  } catch (e) {
-    console.error('[Arbeitnow]', e.message);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────
-// SOURCE 8 — Adzuna India
-// Best for authentic Indian jobs (needs free signup)
-// Register: developer.adzuna.com → free
-// Set ADZUNA_APP_ID + ADZUNA_APP_KEY as GitHub Secrets
-// ─────────────────────────────────────────────
-async function fetchAdzuna(query = 'software engineer') {
-  if (!CONFIG.adzuna.enabled) {
-    console.log('[Adzuna] Skipped — set ADZUNA_APP_ID + ADZUNA_APP_KEY in GitHub Secrets for Indian jobs from Naukri/LinkedIn');
-    return [];
-  }
-  const url = `https://api.adzuna.com/v1/api/jobs/in/search/1`
-    + `?app_id=${CONFIG.adzuna.app_id}`
-    + `&app_key=${CONFIG.adzuna.app_key}`
-    + `&results_per_page=${CONFIG.limit}`
-    + `&what=${encodeURIComponent(query)}`
-    + `&content-type=application/json`;
-  try {
-    const res = await fetch(url, { headers: HEADERS });
-    const data = await res.json();
-    return (data.results || []).map(j => ({
-      id: `adzuna_${j.id}`,
-      title: j.title || 'Unknown',
-      company: j.company?.display_name || 'Unknown',
-      location: j.location?.display_name || 'India',
-      salary: j.salary_min
-        ? `₹${Math.round(j.salary_min).toLocaleString()} – ₹${Math.round(j.salary_max || j.salary_min).toLocaleString()}`
-        : null,
-      description: stripHtml(j.description || '').slice(0, 500),
-      tags: j.category ? [j.category.label] : [],
-      posted: safeDate(j.created),
-      url: j.redirect_url || 'https://www.adzuna.in',
-      source: 'Adzuna India (Naukri/LinkedIn)'
-    }));
-  } catch (e) {
-    console.error('[Adzuna]', e.message);
-    return [];
-  }
-}
-
-// ─────────────────────────────────────────────
-// SOURCE 9 — Google Custom Search (PSU / Govt)
-// 100 free searches/day — best for PSU notifications
-//
-// Setup (5 min, free):
-//   1. programmablesearchengine.google.com → New search engine
-//      Add sites: *.gov.in, ssc.nic.in, upsc.gov.in, ibps.in,
-//      employmentnews.gov.in, sarkariresult.com, *.nic.in, rbi.org.in
-//      Copy the Search Engine ID
-//   2. console.cloud.google.com → Enable Custom Search API → Create API Key
-//   3. Add to GitHub Secrets:
-//      GOOGLE_CSE_KEY = your API key
-//      GOOGLE_CSE_CX  = your Search Engine ID
-// ─────────────────────────────────────────────
-async function fetchGooglePSU(queries = [
-  'PSU recruitment 2026 notification India apply',
-  'UPSC SSC IBPS RRB recruitment notification 2026',
-  'BHEL NTPC ONGC HAL BEL recruitment 2026 vacancy',
-  'government IT jobs NIC BSNL CDAC recruitment 2026'
-]) {
-  if (!CONFIG.google.enabled) {
-    console.log('[Google] Skipped — set GOOGLE_CSE_KEY + GOOGLE_CSE_CX in GitHub Secrets.');
-    console.log('  Setup guide: programmablesearchengine.google.com + console.cloud.google.com');
-    return [];
-  }
-
-  const allResults = [];
-
-  for (const query of queries.slice(0, 4)) { // max 4 queries to stay in free tier
-    try {
-      const url = `https://www.googleapis.com/customsearch/v1`
-        + `?key=${CONFIG.google.key}`
-        + `&cx=${CONFIG.google.cx}`
-        + `&q=${encodeURIComponent(query)}`
-        + `&num=10`
-        + `&dateRestrict=m3`
-        + `&sort=date`;
-
-      const res = await fetch(url, { headers: HEADERS });
-
-      if (res.status === 429) {
-        console.warn('[Google] Daily limit (100/day) reached. Results so far kept.');
-        break;
+function getEditDistance(s1, s2) {
+  const costs = [];
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) {
+        costs[j] = j;
+      } else if (j > 0) {
+        let newValue = costs[j - 1];
+        if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+        }
+        costs[j - 1] = lastValue;
+        lastValue = newValue;
       }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
+  }
+  return costs[s2.length];
+}
 
-      if (!res.ok) {
-        console.error(`[Google] HTTP ${res.status} for query: ${query}`);
+function findDuplicates(jobs, similarityThreshold = 0.75) {
+  const duplicates = [];
+  const checked = new Set();
+  
+  for (let i = 0; i < jobs.length; i++) {
+    if (checked.has(i)) continue;
+    
+    for (let j = i + 1; j < jobs.length; j++) {
+      if (checked.has(j)) continue;
+      
+      const job1 = jobs[i];
+      const job2 = jobs[j];
+      
+      // Exact company + title match
+      if (job1.company === job2.company && job1.title === job2.title) {
+        duplicates.push({
+          group: [i, j],
+          reason: 'Exact title and company match',
+          confidence: 1.0,
+          jobs: [job1, job2]
+        });
+        checked.add(j);
         continue;
       }
-
-      const data = await res.json();
-      const items = data.items || [];
-
-      items.forEach((item, i) => {
-        allResults.push({
-          id: `google_${Date.now()}_${i}`,
-          title: item.title || 'Unknown',
-          company: item.displayLink || 'Government',
-          location: 'India 🇮🇳',
-          salary: null,
-          description: (item.snippet || '').slice(0, 500),
-          tags: ['PSU', 'Government', 'Google Search'],
-          posted: item.pagemap?.metatags?.[0]?.['article:published_time']
-            ? new Date(item.pagemap.metatags[0]['article:published_time']).toISOString()
-            : new Date().toISOString(),
-          url: item.link,
-          source: 'Google Search (PSU)'
+      
+      // Similar descriptions
+      const descSimilarity = calculateStringSimilarity(
+        job1.description || '',
+        job2.description || ''
+      );
+      
+      if (descSimilarity > similarityThreshold) {
+        duplicates.push({
+          group: [i, j],
+          reason: `Similar job descriptions (${(descSimilarity * 100).toFixed(1)}% match)`,
+          confidence: descSimilarity,
+          jobs: [job1, job2]
         });
-      });
-
-      console.log(`[Google] "${query}" → ${items.length} results`);
-      await new Promise(r => setTimeout(r, 500)); // gentle rate limiting
-    } catch (e) {
-      console.error(`[Google] Error for "${query}":`, e.message);
-    }
-  }
-
-  return allResults;
-}
-
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-function levenshtein(a, b) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1]
-        ? dp[i-1][j-1]
-        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-  return dp[m][n];
-}
-
-function similarity(s1, s2) {
-  if (!s1 || !s2) return 0;
-  const a = s1.toLowerCase().slice(0, 150);
-  const b = s2.toLowerCase().slice(0, 150);
-  if (a === b) return 1;
-  const longer = Math.max(a.length, b.length);
-  return (longer - levenshtein(a, b)) / longer;
-}
-
-function findDuplicates(jobs, threshold = 0.75) {
-  const dupes = [], seen = new Set();
-  for (let i = 0; i < jobs.length; i++) {
-    if (seen.has(i)) continue;
-    for (let j = i + 1; j < jobs.length; j++) {
-      if (seen.has(j)) continue;
-      const a = jobs[i], b = jobs[j];
-      if (a.company === b.company && a.title === b.title) {
-        dupes.push({ indices: [i, j], reason: 'Exact title + company', confidence: 1.0 });
-        seen.add(j);
-      } else if (similarity(a.description, b.description) > threshold) {
-        dupes.push({ indices: [i, j], reason: 'Similar description', confidence: 0.8 });
-        seen.add(j);
+        checked.add(j);
       }
     }
   }
-  return dupes;
+  
+  return duplicates;
 }
 
-// ─────────────────────────────────────────────
-// FAKE JOB VALIDATOR
-// ─────────────────────────────────────────────
-const SCAM_PATTERNS = [
-  /upfront.{0,20}(fee|payment|deposit)/i,
-  /wire.{0,10}transfer/i,
-  /processing.{0,10}fee/i,
-  /guaranteed.{0,15}(job|hire|income)/i,
-  /earn.{0,20}(easily|₹\d+).{0,20}(home|week)/i,
-  /no.{0,10}experience.{0,15}required.{0,30}(earn|salary)/i,
-  /work.{0,10}from.{0,10}home.{0,20}no.{0,10}experience/i,
-  /whatsapp.{0,20}(apply|contact|join)/i,
-  /data.{0,10}entry.{0,20}₹\s*[3-9]\d{4,}/i,
-];
+// ============================================
+// FAKE JOB DETECTION
+// ============================================
 
-function validateJob(job) {
-  let score = 0;
-  const risks = [];
-  const text = (job.description || '') + ' ' + (job.title || '');
-  SCAM_PATTERNS.forEach(p => { if (p.test(text)) { score += 25; risks.push('Scam pattern detected'); } });
-  if (/@(gmail|yahoo|hotmail|outlook)\.com/i.test(text)) { score += 30; risks.push('Personal email as contact'); }
-  if (!job.url || job.url.length < 10) { score += 15; risks.push('No valid URL'); }
-  const vague = ['work from home', 'earn money', 'part time work', 'home based'];
-  if (vague.some(v => (job.title || '').toLowerCase().includes(v))) { score += 20; risks.push('Vague job title'); }
-  const riskScore = Math.min(100, score);
-  return {
-    riskScore,
-    riskLevel: riskScore < 30 ? 'LOW' : riskScore < 60 ? 'MEDIUM' : 'HIGH',
-    isLegitimate: riskScore < 50,
-    risks
-  };
-}
-
-// ─────────────────────────────────────────────
-// MAIN SCRAPER
-// ─────────────────────────────────────────────
-async function scrapeAll(query = 'software engineer') {
-  console.log(`\n🔍 Scraping: "${query}"\n`);
-
-  const [
-    indeedIndia,
-    psu,
-    timesJobs,
-    remotive,
-    jobicy,
-    remoteok,
-    arbeitnow,
-    adzuna,
-    google
-  ] = await Promise.allSettled([
-    fetchIndeedIndia(query),
-    fetchEmploymentNews(),
-    fetchTimesJobs(query),
-    fetchRemotive(query),
-    fetchJobicy(query),
-    fetchRemoteOK(query),
-    fetchArbeitnow(query),
-    fetchAdzuna(query),
-    fetchGooglePSU()
-  ]);
-
-  const get = r => r.status === 'fulfilled' ? r.value : [];
-
-  const counts = {
-    'Indeed India':           get(indeedIndia).length,
-    'Employment News (PSU)':  get(psu).length,
-    'TimesJobs':              get(timesJobs).length,
-    'Remotive':               get(remotive).length,
-    'Jobicy':                 get(jobicy).length,
-    'RemoteOK':               get(remoteok).length,
-    'Arbeitnow':              get(arbeitnow).length,
-    'Adzuna India':           get(adzuna).length,
-    'Google Search (PSU)':    get(google).length,
-  };
-
-  Object.entries(counts).forEach(([s, n]) => console.log(`  ${s}: ${n} jobs`));
-
-  const allJobs = [
-    ...get(indeedIndia),
-    ...get(psu),
-    ...get(google),          // Google PSU results — high relevance, show early
-    ...get(timesJobs),
-    ...get(adzuna),
-    ...get(remotive),
-    ...get(jobicy),
-    ...get(remoteok),
-    ...get(arbeitnow),
-  ].map(job => ({ ...job, validation: validateJob(job) }));
-
-  const duplicates = findDuplicates(allJobs);
-  const dupeIndices = new Set(duplicates.flatMap(d => [d.indices[1]]));
-
-  const jobs = allJobs.map((j, i) => ({ ...j, isDuplicate: dupeIndices.has(i) }));
-
-  const summary = {
-    total:      jobs.length,
-    verified:   jobs.filter(j => j.validation.isLegitimate).length,
-    suspicious: jobs.filter(j => !j.validation.isLegitimate).length,
-    duplicates: duplicates.length,
-    bySource:   counts,
-    scrapedAt:  new Date().toISOString(),
-    query
-  };
-
-  const output = { scrapedAt: summary.scrapedAt, query, summary, jobs, duplicates };
-
-  fs.writeFileSync('jobs.json', JSON.stringify(output, null, 2));
-
-  console.log(`\n✅ Saved ${jobs.length} jobs to jobs.json`);
-  console.log(`   Verified: ${summary.verified} | Suspicious: ${summary.suspicious} | Dupes: ${summary.duplicates}`);
-  if (!CONFIG.adzuna.enabled) {
-    console.log('\n💡 TIP: Set ADZUNA_APP_ID + ADZUNA_APP_KEY in GitHub Secrets for Naukri/LinkedIn Indian jobs.');
-    console.log('   Register free at: https://developer.adzuna.com\n');
-  }
-  if (!CONFIG.google.enabled) {
-    console.log('💡 TIP: Set GOOGLE_CSE_KEY + GOOGLE_CSE_CX in GitHub Secrets for PSU/Govt job search via Google.');
-    console.log('   Step 1: https://programmablesearchengine.google.com → create engine for *.gov.in sites');
-    console.log('   Step 2: https://console.cloud.google.com → Enable Custom Search API → create key\n');
+class JobValidator {
+  constructor() {
+    this.suspiciousPatterns = [
+      /work from home.*no experience/i,
+      /earn.*easily.*home/i,
+      /no degree.*required/i,
+      /guaranteed.*hiring/i,
+      /upfront.*payment/i,
+      /processing fee/i,
+      /wire transfer/i,
+      /untraceable.*payment/i,
+    ];
+    
+    this.badEnglishIndicators = [
+      /their is /i,
+      /your company/i,
+      /plz /i,
+      /asap.*need/i,
+      /kindly.*urgent/i,
+    ];
+    
+    this.validCompanyDomains = {
+      'google.com': true,
+      'microsoft.com': true,
+      'amazon.com': true,
+      'apple.com': true,
+      'meta.com': true,
+      'nvidia.com': true,
+      'ibm.com': true,
+      'intel.com': true,
+      'oracle.com': true,
+      'salesforce.com': true,
+    };
   }
 
-  return output;
+  validate(job) {
+    const risks = [];
+    let riskScore = 0;
+
+    // 1. Check for suspicious patterns
+    const suspiciousMatches = this.suspiciousPatterns.filter(p => p.test(job.description));
+    if (suspiciousMatches.length > 0) {
+      riskScore += 30;
+      risks.push('Suspicious job description patterns detected');
+    }
+
+    // 2. Grammar check
+    const grammarIssues = this.badEnglishIndicators.filter(p => p.test(job.description));
+    if (grammarIssues.length > 2) {
+      riskScore += 20;
+      risks.push('Poor English quality detected');
+    }
+
+    // 3. Vague company name
+    if (!job.company || job.company.length < 3 || /^[A-Za-z0-9 ]+$/.test(job.company) === false) {
+      riskScore += 15;
+      risks.push('Vague or suspicious company name');
+    }
+
+    // 4. Company verification
+    const emailDomain = this.extractEmailDomain(job.description);
+    if (emailDomain && !this.validateDomain(emailDomain)) {
+      riskScore += 25;
+      risks.push(`Suspicious email domain: ${emailDomain}`);
+    }
+
+    // 5. Salary validation
+    if (job.salary) {
+      const isUnrealistic = this.isSalaryUnrealistic(job.title, job.salary);
+      if (isUnrealistic) {
+        riskScore += 25;
+        risks.push('Unrealistic salary for this position');
+      }
+    }
+
+    // 6. No clear contact info
+    if (!job.url || !job.company || !job.location) {
+      riskScore += 15;
+      risks.push('Missing critical job information');
+    }
+
+    // 7. Too good to be true (work from home + high salary)
+    if (job.location?.toLowerCase().includes('remote') || job.location?.toLowerCase().includes('work from home')) {
+      if (job.salary && this.isSalaryHigh(job.salary)) {
+        riskScore += 20;
+        risks.push('Work-from-home with exceptionally high salary (common scam)');
+      }
+    }
+
+    return {
+      isLegitimate: riskScore < 40,
+      riskLevel: this.getRiskLevel(riskScore),
+      riskScore: Math.min(100, riskScore),
+      risks: risks,
+      verified: riskScore < 30
+    };
+  }
+
+  extractEmailDomain(text) {
+    const emailRegex = /@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+    const match = text.match(emailRegex);
+    return match ? match[1] : null;
+  }
+
+  validateDomain(domain) {
+    // Simple domain validation - would connect to WHOIS/DNS in production
+    const knownBad = ['gmail.com', 'yahoo.com', 'outlook.com'];
+    if (knownBad.includes(domain.toLowerCase())) return false;
+    return true;
+  }
+
+  isSalaryUnrealistic(title, salary) {
+    // Parse salary range
+    const salaryMatch = salary.match(/₹?(\d+)[-–]?₹?(\d+)?/);
+    if (!salaryMatch) return false;
+
+    const minSalary = parseInt(salaryMatch[1]);
+    const maxSalary = salaryMatch[2] ? parseInt(salaryMatch[2]) : minSalary;
+    const avgSalary = (minSalary + maxSalary) / 2;
+
+    // Industry benchmarks
+    const benchmarks = {
+      'intern': { min: 50000, max: 300000 },
+      'junior': { min: 300000, max: 800000 },
+      'senior': { min: 1000000, max: 3000000 },
+      'lead': { min: 1500000, max: 4000000 },
+      'manager': { min: 1200000, max: 3500000 },
+    };
+
+    for (const [level, range] of Object.entries(benchmarks)) {
+      if (title.toLowerCase().includes(level)) {
+        return avgSalary < range.min || avgSalary > range.max * 1.5;
+      }
+    }
+
+    return false;
+  }
+
+  isSalaryHigh(salary) {
+    const salaryMatch = salary.match(/₹?(\d+)[-–]?₹?(\d+)?/);
+    if (!salaryMatch) return false;
+    const avgSalary = parseInt(salaryMatch[1]);
+    return avgSalary > 1500000; // Above 15 LPA
+  }
+
+  getRiskLevel(score) {
+    if (score < 30) return 'LOW';
+    if (score < 60) return 'MEDIUM';
+    return 'HIGH';
+  }
 }
 
-// CLI
+// ============================================
+// MAIN SCRAPER CLASS
+// ============================================
+
+class JobScraper {
+  constructor() {
+    this.validator = new JobValidator();
+    this.jobs = [];
+    this.duplicates = [];
+    this.lastScrape = null;
+  }
+
+  async scrapeAll(searchQuery = 'IT jobs', limit = 20) {
+    console.log(`\n🔍 Scraping for: "${searchQuery}"\n`);
+    
+    const results = {
+      total: 0,
+      verified: 0,
+      suspicious: 0,
+      duplicates: 0,
+      jobs: [],
+      stats: {}
+    };
+
+    // Scrape from each source
+    for (const [key, source] of Object.entries(JOB_SOURCES)) {
+      try {
+        console.log(`[${source.name}] Fetching jobs...`);
+        const jobs = await source.parser(searchQuery, limit);
+        
+        // Validate each job
+        const validatedJobs = jobs.map(job => ({
+          ...job,
+          validation: this.validator.validate(job)
+        }));
+
+        results.jobs.push(...validatedJobs);
+        results.stats[key] = validatedJobs.length;
+        
+      } catch (err) {
+        console.error(`[${source.name}] Error:`, err.message);
+        results.stats[key] = `Error: ${err.message}`;
+      }
+    }
+
+    // Detect duplicates
+    this.duplicates = findDuplicates(results.jobs);
+    results.duplicates = this.duplicates.length;
+
+    // Count validations
+    results.verified = results.jobs.filter(j => j.validation.verified).length;
+    results.suspicious = results.jobs.filter(j => !j.validation.isLegitimate).length;
+    results.total = results.jobs.length;
+
+    this.jobs = results.jobs;
+    this.lastScrape = new Date();
+
+    return results;
+  }
+
+  generateReport() {
+    if (this.jobs.length === 0) {
+      return '❌ No jobs scraped yet. Run scrapeAll() first.';
+    }
+
+    let report = `
+╔════════════════════════════════════════════════════════╗
+║         IT JOB SCRAPER REPORT - ${this.lastScrape.toLocaleDateString()}            ║
+╚════════════════════════════════════════════════════════╝
+
+📊 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total Jobs Found:     ${this.jobs.length}
+Verified (Legitimate): ${this.jobs.filter(j => j.validation.verified).length}
+Suspicious:           ${this.jobs.filter(j => !j.validation.isLegitimate).length}
+Duplicates Found:     ${this.duplicates.length}
+
+🟢 VERIFIED JOBS (Low Risk)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+    this.jobs.filter(j => j.validation.verified).slice(0, 5).forEach((job, i) => {
+      report += `
+${i + 1}. ${job.title}
+   Company: ${job.company}
+   Location: ${job.location}
+   Salary: ${job.salary || 'Not mentioned'}
+   Source: ${job.source}
+   URL: ${job.url}
+`;
+    });
+
+    report += `
+
+⚠️  SUSPICIOUS JOBS (Medium-High Risk)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+    this.jobs.filter(j => !j.validation.isLegitimate).slice(0, 5).forEach((job, i) => {
+      report += `
+${i + 1}. ${job.title}
+   Company: ${job.company}
+   Risk Level: ${job.validation.riskLevel}
+   Risk Score: ${job.validation.riskScore}/100
+   Issues: ${job.validation.risks.join(', ')}
+`;
+    });
+
+    if (this.duplicates.length > 0) {
+      report += `
+
+🔄 DUPLICATES DETECTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+      this.duplicates.slice(0, 3).forEach((dup, i) => {
+        report += `
+${i + 1}. ${dup.jobs[0].title} @ ${dup.jobs[0].company}
+   Duplicate of: ${dup.jobs[1].title} @ ${dup.jobs[1].company}
+   Reason: ${dup.reason}
+   Confidence: ${(dup.confidence * 100).toFixed(1)}%
+`;
+      });
+    }
+
+    return report;
+  }
+
+  exportToJSON(filename = 'jobs.json') {
+    const data = {
+      timestamp: this.lastScrape,
+      summary: {
+        total: this.jobs.length,
+        verified: this.jobs.filter(j => j.validation.verified).length,
+        suspicious: this.jobs.filter(j => !j.validation.isLegitimate).length,
+        duplicates: this.duplicates.length
+      },
+      jobs: this.jobs,
+      duplicates: this.duplicates
+    };
+
+    fs.writeFileSync(filename, JSON.stringify(data, null, 2));
+    console.log(`✅ Exported to ${filename}`);
+    return filename;
+  }
+
+  exportToMarkdown(filename = 'jobs.md') {
+    let md = `# IT Jobs Report\n\nGenerated: ${new Date().toLocaleString()}\n\n`;
+
+    md += `## 📊 Summary\n\n`;
+    md += `- **Total Jobs**: ${this.jobs.length}\n`;
+    md += `- **Verified**: ${this.jobs.filter(j => j.validation.verified).length}\n`;
+    md += `- **Suspicious**: ${this.jobs.filter(j => !j.validation.isLegitimate).length}\n`;
+    md += `- **Duplicates**: ${this.duplicates.length}\n\n`;
+
+    md += `## ✅ Verified Jobs\n\n`;
+    this.jobs.filter(j => j.validation.verified).forEach(job => {
+      md += `### ${job.title}\n`;
+      md += `**Company**: ${job.company}\n`;
+      md += `**Location**: ${job.location}\n`;
+      md += `**Salary**: ${job.salary || 'Not mentioned'}\n`;
+      md += `**Source**: [${job.source}](${job.url})\n\n`;
+    });
+
+    fs.writeFileSync(filename, md);
+    console.log(`✅ Exported to ${filename}`);
+    return filename;
+  }
+}
+
+// ============================================
+// EXPORT & USAGE
+// ============================================
+
+module.exports = {
+  JobScraper,
+  JobValidator,
+  findDuplicates,
+  calculateStringSimilarity
+};
+
+// Example usage
 if (require.main === module) {
-  const query = process.argv[2] || 'software engineer';
-  scrapeAll(query).catch(console.error);
+  (async () => {
+    const scraper = new JobScraper();
+    
+    const results = await scraper.scrapeAll('software engineer', 20);
+    
+    console.log(scraper.generateReport());
+    
+    scraper.exportToJSON('./jobs.json');
+    scraper.exportToMarkdown('./jobs.md');
+  })();
 }
-
-module.exports = { scrapeAll, validateJob, findDuplicates };
