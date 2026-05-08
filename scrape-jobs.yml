@@ -43,8 +43,10 @@ jobs:
 
       - name: Run Job Scraper
         env:
-          ADZUNA_APP_ID:  ${{ secrets.ADZUNA_APP_ID }}
-          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          ADZUNA_APP_ID:   ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY:  ${{ secrets.ADZUNA_APP_KEY }}
+          GOOGLE_CSE_KEY:  ${{ secrets.GOOGLE_CSE_KEY }}
+          GOOGLE_CSE_CX:   ${{ secrets.GOOGLE_CSE_CX }}
           NODE_ENV: production
         run: |
           echo "🔍 Starting job scraper..."
